@@ -37,14 +37,17 @@ rate limiting) → services (commerce APIs, search & recommendations, AI assista
 ## Layout
 ```
 backend/app/
-  api/        deps.py (auth + require_role), router.py, routes/{auth,sellers,products}.py
-  core/       config.py (pydantic-settings), security.py (bcrypt + JWT), errors.py
-  db/         base.py, session.py (engine, get_db), init_db.py (CREATE EXTENSION vector + create_all)
-  models/     SQLAlchemy ORM models (User, Seller, Product)
+  api/        deps.py (CurrentUser/CustomerUser/SellerUser/AdminUser/CurrentSeller, require_role),
+              router.py, routes/{auth,sellers,products,cart,orders,returns,admin}.py
+  core/       config.py (pydantic-settings), security.py (bcrypt + JWT), errors.py,
+              policies.py (business rules: max qty, return window, trust penalty)
+  db/         base.py, session.py (engine, get_db), types.py (pg_enum, utcnow)
+  models/     User, Seller, Product, CartItem, Order/OrderItem/OrderEvent, ReturnRequest
   schemas/    Pydantic request/response models
-  services/   business logic (pricing.py, user/seller/product services) — HTTP-agnostic
+  services/   business logic — HTTP-agnostic (pricing, user, seller, product, cart, order, return)
   ai/         (Phase 3+) LangChain / RAG
   scripts/    create_admin.py (admins cannot self-register)
+backend/migrations/  Alembic (async env; 0001 Phase 1 schema, 0002 cart/orders/returns)
 backend/tests/  pytest (pricing + security run anywhere; API tests need the test DB)
 frontend/       Vite React
 docker-compose.yml  Postgres+pgvector (host port 5433) and Redis (6379), named volumes
@@ -65,6 +68,15 @@ docker-compose.yml  Postgres+pgvector (host port 5433) and Redis (6379), named v
 - Proper HTTP status codes (201 create, 401 bad credentials, 403 wrong role, 404, 409 duplicate, 422 validation).
 - Never hard-code secrets; everything comes from `backend/.env` (template: `.env.example`).
 - API prefix `/api/v1`. CORS allows `http://localhost:5173`.
+- **Schema changes go through Alembic**: edit models → `alembic revision --autogenerate -m "..."`
+  (from backend/) → review it (autogenerate duplicates shared PG enums and forgets to drop enum
+  types on downgrade: create enums explicitly with `create_type=False`) → verify on the test DB with
+  `alembic -x db=test upgrade head` + `alembic -x db=test check`. The app no longer creates tables at startup.
+- Orders: checkout creates one order per seller; prices are snapshotted on OrderItem and never
+  recomputed; checkout requires `expected_total` == server total (409 otherwise); products are
+  locked `FOR UPDATE` in id order. Fees are per unit, so totals = Σ unit final price × qty.
+- Tests share one pooled engine per run (session event loop) and TRUNCATE between tests;
+  `BCRYPT_ROUNDS=4` in tests. Full suite ≈ 2.5 min against Neon (network-bound).
 
 ## Local environment notes
 - Run like the user's Next.js portals: `npm run setup` (once), `npm run dev` (API + web together
@@ -74,13 +86,13 @@ docker-compose.yml  Postgres+pgvector (host port 5433) and Redis (6379), named v
 - Docker is on hold (WSL2 not installed yet). Current dev DB: **Neon** cloud Postgres with
   `POSTGRES_SSL=require` (direct host, not `-pooler`, because asyncpg prepared statements break
   behind PgBouncer). Test DB is a second Neon database `shopsense_test`. Redis unused until later.
-- Tables are created on startup via `create_all` for now; switch to Alembic in a later phase.
+- Tables are managed by Alembic migrations (`npm run migrate`, also run automatically by `npm run dev`).
 
 ## Phases
-- **Phase 1 (done, 38/38 tests passing against Neon):** config, DB, models (User/Seller/Product), pricing service, auth (register/login/me),
+- **Phase 1 (done):** config, DB, models (User/Seller/Product), pricing service, auth (register/login/me),
   role dependency, seller profile, product list/get/create with price breakdown + seller card, tests.
-- **Phase 2:** cart + orders (no auto-added items, explicit payment method, no silent COD conversion),
-  order price snapshot, wrong/fake-item return flow, Alembic migrations.
+- **Phase 2 (done, 67 tests passing against Neon):** cart + orders (no auto-added items, explicit payment method, no silent COD conversion),
+  order price snapshot + status timeline, expected_total check, stock locking, wrong/fake-item returns with trust-score penalty, Alembic migrations.
 - **Phase 3:** AI search & assistant — embeddings in pgvector, RAG over products + reviews,
   LangChain agent, multilingual + voice.
 - **Phase 4:** reviews (verified only, summariser, fake-review detection), seller trust score.

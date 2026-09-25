@@ -2,10 +2,9 @@ from typing import Annotated
 
 from fastapi import APIRouter, Query, status
 
-from app.api.deps import DbSession, SellerUser
-from app.core.errors import PermissionDeniedError
+from app.api.deps import CurrentSeller, DbSession
 from app.schemas.product import ProductCreate, ProductListResponse, ProductRead
-from app.services import product_service, seller_service
+from app.services import product_service
 
 router = APIRouter(prefix="/products", tags=["products"])
 
@@ -36,10 +35,7 @@ async def get_product(product_id: int, db: DbSession) -> ProductRead:
 
 
 @router.post("", response_model=ProductRead, status_code=status.HTTP_201_CREATED)
-async def create_product(data: ProductCreate, user: SellerUser, db: DbSession) -> ProductRead:
+async def create_product(data: ProductCreate, seller: CurrentSeller, db: DbSession) -> ProductRead:
     """List a new product. Requires the seller role and a seller profile."""
-    seller = await seller_service.get_seller_by_user_id(db, user.id)
-    if seller is None:
-        raise PermissionDeniedError("Create your seller profile (POST /api/v1/sellers/me) before listing products")
     product = await product_service.create_product(db, seller, data)
     return product_service.to_product_read(product)

@@ -5,9 +5,20 @@ from sqlalchemy.orm import selectinload
 from app.core.errors import NotFoundError
 from app.models.product import Product
 from app.models.seller import Seller
+from app.schemas.pricing import PriceBreakdown
 from app.schemas.product import ProductCreate, ProductRead
 from app.schemas.seller import SellerCard
 from app.services.pricing import calculate_price_breakdown
+
+
+def price_of(product: Product) -> PriceBreakdown:
+    """Current all-inclusive unit price of a product."""
+    return calculate_price_breakdown(
+        base_price=product.base_price,
+        delivery_fee=product.delivery_fee,
+        platform_fee=product.platform_fee,
+        gst_percent=product.gst_percent,
+    )
 
 
 def to_product_read(product: Product) -> ProductRead:
@@ -22,12 +33,7 @@ def to_product_read(product: Product) -> ProductRead:
         is_returnable=product.is_returnable,
         country_of_origin=product.country_of_origin,
         created_at=product.created_at,
-        price=calculate_price_breakdown(
-            base_price=product.base_price,
-            delivery_fee=product.delivery_fee,
-            platform_fee=product.platform_fee,
-            gst_percent=product.gst_percent,
-        ),
+        price=price_of(product),
         seller=SellerCard.model_validate(product.seller),
     )
 

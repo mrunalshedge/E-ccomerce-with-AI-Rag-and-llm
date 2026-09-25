@@ -1,6 +1,6 @@
 """Create an admin account (admins cannot self-register through the API).
 
-Usage (from backend/):  python -m app.scripts.create_admin --name "Admin" --email admin@example.com
+Run migrations first (`npm run migrate`). Usage (from backend/):  python -m app.scripts.create_admin --name "Admin" --email admin@example.com
 The password is prompted for, never passed on the command line.
 """
 
@@ -12,7 +12,6 @@ import sys
 from pydantic import ValidationError
 
 from app.core.errors import ConflictError
-from app.db.init_db import init_db
 from app.db.session import SessionLocal, engine
 from app.models.user import UserRole
 from app.schemas.user import UserCreate
@@ -27,7 +26,6 @@ async def _main(name: str, email: str, password: str) -> int:
         print(exc, file=sys.stderr)
         return 1
 
-    await init_db(engine)
     try:
         async with SessionLocal() as db:
             user = await create_user(db, data, role=UserRole.ADMIN)

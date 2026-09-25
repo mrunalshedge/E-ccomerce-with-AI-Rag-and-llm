@@ -5,9 +5,10 @@ marketplaces do. Every line is rounded to 2 places (ROUND_HALF_UP) *before* summ
 lines a customer sees always add up exactly to the final price.
 """
 
+from collections.abc import Iterable
 from decimal import ROUND_HALF_UP, Decimal
 
-from app.schemas.pricing import PriceBreakdown
+from app.schemas.pricing import OrderTotals, PriceBreakdown
 
 MONEY_QUANTUM = Decimal("0.01")
 DEFAULT_GST_PERCENT = Decimal("18")
@@ -55,4 +56,29 @@ def calculate_price_breakdown(
         gst_percent=_to_money(gst_rate),
         gst_amount=gst_amount,
         final_price=taxable + gst_amount,
+    )
+
+
+def line_total(unit: PriceBreakdown, quantity: int) -> Decimal:
+    return _to_money(unit.final_price * quantity)
+
+
+def summarise_lines(lines: Iterable[tuple[PriceBreakdown, int]]) -> OrderTotals:
+    """Totals for (unit price, quantity) pairs. Fees are per unit, exactly as shown on the
+    product page, so the grand total is always Σ unit final price × quantity."""
+    items = 0
+    base = delivery = platform = gst = Decimal("0")
+    for unit, quantity in lines:
+        items += quantity
+        base += unit.base_price * quantity
+        delivery += unit.delivery_fee * quantity
+        platform += unit.platform_fee * quantity
+        gst += unit.gst_amount * quantity
+    return OrderTotals(
+        items_count=items,
+        total_base=_to_money(base),
+        total_delivery=_to_money(delivery),
+        total_platform_fee=_to_money(platform),
+        total_gst=_to_money(gst),
+        grand_total=_to_money(base + delivery + platform + gst),
     )

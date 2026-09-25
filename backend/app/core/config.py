@@ -35,6 +35,8 @@ class Settings(BaseSettings):
     jwt_secret_key: str = Field(min_length=32)
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = Field(default=60, gt=0)
+    # bcrypt work factor. 12 for real use; tests lower it to 4 so they run fast.
+    bcrypt_rounds: int = Field(default=12, ge=4, le=16)
 
     cors_origins: list[str] = ["http://localhost:5173"]
 

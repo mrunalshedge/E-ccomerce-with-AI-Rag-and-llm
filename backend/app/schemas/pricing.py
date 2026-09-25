@@ -14,3 +14,16 @@ class PriceBreakdown(BaseModel):
     gst_amount: Decimal
     final_price: Decimal = Field(description="What the customer pays. Nothing is added at checkout.")
     currency: str = "INR"
+
+
+class OrderTotals(BaseModel):
+    """Totals for a cart or order. ``grand_total`` always equals the sum of each line's
+    all-inclusive unit price × quantity, i.e. exactly what the product pages showed."""
+
+    items_count: int
+    total_base: Decimal
+    total_delivery: Decimal
+    total_platform_fee: Decimal
+    total_gst: Decimal
+    grand_total: Decimal
+    currency: str = "INR"

@@ -2,7 +2,7 @@ from decimal import Decimal
 
 import pytest
 
-from app.services.pricing import calculate_price_breakdown
+from app.services.pricing import calculate_price_breakdown, line_total, summarise_lines
 
 
 def test_standard_breakdown_gst_on_all_fees() -> None:
@@ -63,3 +63,21 @@ def test_float_input_is_rejected() -> None:
 def test_invalid_amounts_raise_value_error(kwargs: dict[str, str]) -> None:
     with pytest.raises(ValueError):
         calculate_price_breakdown(**kwargs)
+
+
+def test_summarise_lines_equals_sum_of_shown_prices() -> None:
+    kurta = calculate_price_breakdown("1000", "40", "10", "18")  # 1239.00
+    book = calculate_price_breakdown("299.99", "0", "5", "5")  # GST-light item
+    totals = summarise_lines([(kurta, 2), (book, 3)])
+    assert totals.items_count == 5
+    assert totals.grand_total == kurta.final_price * 2 + book.final_price * 3
+    assert totals.grand_total == (
+        totals.total_base + totals.total_delivery + totals.total_platform_fee + totals.total_gst
+    )
+    assert line_total(book, 3) == book.final_price * 3
+
+
+def test_summarise_empty_cart() -> None:
+    totals = summarise_lines([])
+    assert totals.items_count == 0
+    assert totals.grand_total == Decimal("0.00")

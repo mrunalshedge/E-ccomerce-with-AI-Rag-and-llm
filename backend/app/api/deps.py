@@ -9,9 +9,12 @@ from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
+from app.core.errors import PermissionDeniedError
 from app.core.security import decode_access_token
 from app.db.session import get_db
+from app.models.seller import Seller
 from app.models.user import User, UserRole
+from app.services import seller_service
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{get_settings().api_v1_prefix}/auth/login")
 
@@ -54,4 +57,17 @@ def require_role(*roles: UserRole | str) -> Callable[[User], Awaitable[User]]:
     return checker
 
 
+CustomerUser = Annotated[User, Depends(require_role(UserRole.CUSTOMER))]
 SellerUser = Annotated[User, Depends(require_role(UserRole.SELLER))]
+AdminUser = Annotated[User, Depends(require_role(UserRole.ADMIN))]
+
+
+async def get_current_seller(user: SellerUser, db: DbSession) -> Seller:
+    """The logged-in seller's profile; sellers must create one before selling."""
+    seller = await seller_service.get_seller_by_user_id(db, user.id)
+    if seller is None:
+        raise PermissionDeniedError("Create your seller profile (POST /api/v1/sellers/me) first")
+    return seller
+
+
+CurrentSeller = Annotated[Seller, Depends(get_current_seller)]

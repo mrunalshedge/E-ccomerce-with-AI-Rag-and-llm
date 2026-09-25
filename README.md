@@ -9,8 +9,9 @@ shopping, and trackable grievances. See [CLAUDE.md](CLAUDE.md) for the full cont
 ## Quick start
 ```bash
 npm run setup     # once: Python venv + packages, frontend packages, backend/.env
-npm run dev       # every time: API on :8000 and web app on :5173 together
+npm run dev       # every time: applies DB migrations, then API on :8000 + web app on :5173
 npm test          # run the backend tests
+npm run migrate   # apply database migrations only (Alembic)
 ```
 Before the first `npm run dev`, put your database details in `backend/.env` (see step 2 below).
 API docs: http://localhost:8000/docs · Web app: http://localhost:5173
@@ -59,7 +60,7 @@ python -m venv .venv
 pip install -r requirements.txt
 uvicorn app.main:app --reload
 ```
-Open **http://localhost:8000/docs**. On startup the app enables the `vector` extension and creates the tables.
+Open **http://localhost:8000/docs**. Run `alembic upgrade head` first (from backend/) to create the tables; `npm run dev` does this for you.
 
 ### 4. Tests
 ```bash
@@ -91,6 +92,22 @@ Open http://localhost:5173. `/api` requests are proxied to the backend.
 4. `POST /api/v1/products` to list a product
 5. `GET /api/v1/products` (public): every item includes `price` (base, delivery, platform fee, GST,
    final price) and a `seller` card
+6. Register a **customer**, then `POST /api/v1/cart/items` and `GET /api/v1/cart`
+7. `POST /api/v1/orders` with `payment_method` (`upi` / `card` / `cod`) and `expected_total` set to
+   the cart's `totals.grand_total`
+8. As the seller: `PATCH /api/v1/sellers/me/orders/{id}/status` → `shipped` → `delivered`
+9. As the customer: `POST /api/v1/returns` (reason `wrong_item` / `counterfeit` / `damaged` / `other`)
+10. As an admin (see step 5 of setup): `POST /api/v1/admin/returns/{id}/resolve`
+
+## Consumer protections built in
+| Problem | What ShopSense does |
+|---|---|
+| Drip pricing | Every product, cart line and order shows the all-inclusive price. Checkout refuses to charge anything other than the `expected_total` the customer saw (409 if prices changed). |
+| Dark patterns | Cart items are only added by the customer. Payment method is a required, explicit choice; COD is never switched on silently. |
+| Overselling | Product rows are locked (`SELECT … FOR UPDATE`) during checkout, so two buyers can't both get the last unit. |
+| Wrong / fake items | Wrong-item and counterfeit returns are always accepted within 7 days of delivery, even for "non-returnable" products. Approved ones lower the seller's trust score. |
+| Hidden seller details | Seller card (address, GSTIN, grievance officer, trust score) on every listing. |
+| Order transparency | Every order has a status timeline (placed → shipped → delivered / cancelled) and a price snapshot from the moment of purchase. |
 
 ## Pricing rule
 `taxable = base + delivery + platform fee` → `GST = taxable × gst%` → `final = taxable + GST`.

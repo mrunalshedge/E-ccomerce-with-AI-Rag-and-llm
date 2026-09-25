@@ -11,13 +11,12 @@ from app.api.deps import DbSession
 from app.api.router import api_router
 from app.core.config import get_settings
 from app.core.errors import AppError
-from app.db.init_db import init_db
 from app.db.session import engine
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
-    await init_db(engine)
+    # Schema changes are applied with Alembic (`npm run migrate`), not at startup.
     yield
     await engine.dispose()
 

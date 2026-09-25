@@ -4,7 +4,8 @@
   "description": "One-command dev scripts for the ShopSense backend (FastAPI) and frontend (Vite React).",
   "scripts": {
     "setup": "node scripts/setup.mjs",
-    "dev": "concurrently -k -n api,web -c blue,green \"npm:api\" \"npm:web\"",
+    "dev": "npm run migrate && concurrently -k -n api,web -c blue,green \"npm:api\" \"npm:web\"",
+    "migrate": "node scripts/py.mjs -m alembic upgrade head",
     "api": "node scripts/py.mjs -m uvicorn app.main:app --reload --port 8000",
     "web": "npm --prefix frontend run dev",
     "test": "node scripts/py.mjs -m pytest"
