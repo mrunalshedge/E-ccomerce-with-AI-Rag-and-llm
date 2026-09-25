@@ -1,0 +1,15 @@
+{
+  "name": "shopsense",
+  "private": true,
+  "description": "One-command dev scripts for the ShopSense backend (FastAPI) and frontend (Vite React).",
+  "scripts": {
+    "setup": "node scripts/setup.mjs",
+    "dev": "concurrently -k -n api,web -c blue,green \"npm:api\" \"npm:web\"",
+    "api": "node scripts/py.mjs -m uvicorn app.main:app --reload --port 8000",
+    "web": "npm --prefix frontend run dev",
+    "test": "node scripts/py.mjs -m pytest"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.5"
+  }
+}

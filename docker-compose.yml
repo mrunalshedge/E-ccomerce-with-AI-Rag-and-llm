@@ -1,0 +1,40 @@
+# Local development infrastructure for ShopSense.
+# Credentials come from backend/.env (copy backend/.env.example first).
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: shopsense-postgres
+    env_file:
+      - ./backend/.env
+    ports:
+      # Host 5433 -> container 5432 (5432 on the host may already be used by a native Postgres).
+      - "${POSTGRES_HOST_PORT:-5433}:5432"
+    volumes:
+      - shopsense_pgdata:/var/lib/postgresql/data
+      # Runs once on first start: creates the test database.
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: shopsense-redis
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - shopsense_redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  shopsense_pgdata:
+  shopsense_redisdata:
