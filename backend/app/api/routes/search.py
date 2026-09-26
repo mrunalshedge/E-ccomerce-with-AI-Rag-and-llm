@@ -5,8 +5,7 @@ from fastapi import APIRouter, Query
 
 from app.api.deps import DbSession
 from app.schemas.search import SearchResponse
-from app.services import search_service
-from app.services.product_service import to_product_read
+from app.services import product_service, search_service
 
 router = APIRouter(prefix="/search", tags=["search"])
 
@@ -21,4 +20,5 @@ async def search(
 ) -> SearchResponse:
     """Smart search: matches by meaning (English, हिंदी, मराठी) and by keywords."""
     hits = await search_service.search_products(db, q, category=category, max_price=max_price, limit=limit)
-    return SearchResponse(query=q, items=[to_product_read(h.product) for h in hits], total=len(hits))
+    items = await product_service.to_product_reads(db, [h.product for h in hits])
+    return SearchResponse(query=q, items=items, total=len(hits))

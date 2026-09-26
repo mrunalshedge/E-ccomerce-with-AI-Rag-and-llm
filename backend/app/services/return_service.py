@@ -1,5 +1,6 @@
 """Returns. Wrong or counterfeit items are always returnable within the window (even when the
-product is marked non-returnable), and an approved wrong/fake return lowers the seller's trust score."""
+product is marked non-returnable), and an approved wrong/fake return lowers the seller's trust score
+(see trust_service)."""
 
 from datetime import timedelta
 
@@ -9,11 +10,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.errors import ConflictError, NotFoundError
-from app.core.policies import RETURN_WINDOW_DAYS, TRUST_PENALTY_WRONG_OR_FAKE
+from app.core.policies import RETURN_WINDOW_DAYS
 from app.db.types import utcnow
 from app.models.order import Order, OrderItem, OrderStatus
 from app.models.returns import GUARANTEED_RETURN_REASONS, ReturnRequest, ReturnStatus
 from app.models.seller import Seller
+from app.services.trust_service import recompute_trust_score
 from app.models.user import User
 from app.schemas.returns import ReturnCreate, ReturnRead, ReturnResolve
 
@@ -116,16 +118,12 @@ async def resolve_return(db: AsyncSession, admin: User, return_id: int, data: Re
     if ret.status != ReturnStatus.REQUESTED:
         raise ConflictError(f"This return was already {ret.status.value}")
 
-    if data.decision == "approve":
-        ret.status = ReturnStatus.APPROVED
-        if ret.reason in GUARANTEED_RETURN_REASONS:
-            seller_stmt = select(Seller).where(Seller.id == ret.order_item.order.seller_id).with_for_update()
-            seller = (await db.execute(seller_stmt)).scalar_one()
-            seller.trust_score = max(0.0, seller.trust_score - TRUST_PENALTY_WRONG_OR_FAKE)
-    else:
-        ret.status = ReturnStatus.REJECTED
+    ret.status = ReturnStatus.APPROVED if data.decision == "approve" else ReturnStatus.REJECTED
     ret.resolution_note = data.note.strip()
     ret.resolved_by_id = admin.id
     ret.resolved_at = utcnow()
+    if ret.status == ReturnStatus.APPROVED and ret.reason in GUARANTEED_RETURN_REASONS:
+        await db.flush()  # so the recount below includes this approval
+        await recompute_trust_score(db, ret.order_item.order.seller_id)
     await db.commit()
     return ret

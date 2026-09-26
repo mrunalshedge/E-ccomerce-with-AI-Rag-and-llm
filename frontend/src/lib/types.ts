@@ -38,6 +38,7 @@ export interface Product {
   created_at: string;
   price: PriceBreakdown;
   seller: SellerCard;
+  rating: RatingSummary;
 }
 
 export interface ProductList {
@@ -159,4 +160,47 @@ export interface ChatMessage {
 export interface ChatResponse {
   reply: string;
   products: Product[];
+}
+
+export interface RatingSummary {
+  average: number | null;
+  count: number;
+}
+
+export type ReviewStatus = "published" | "flagged" | "removed";
+export type ReviewSort = "recent" | "highest" | "lowest";
+
+export interface Review {
+  id: number;
+  product_id: number;
+  rating: number;
+  title: string | null;
+  body: string;
+  reviewer: string;
+  verified_purchase: boolean;
+  status: ReviewStatus;
+  created_at: string;
+}
+
+export interface ReviewList {
+  items: Review[];
+  total: number;
+  page: number;
+  page_size: number;
+  stats: RatingSummary & { distribution: Record<string, number>; under_review: number };
+}
+
+export interface ReviewSummary {
+  status: "ready" | "not_enough_reviews" | "unavailable";
+  summary: string | null;
+  review_count: number;
+  generated_at: string | null;
+}
+
+export interface MyReview {
+  id: number;
+  product_id: number;
+  order_item_id: number;
+  rating: number;
+  status: ReviewStatus;
 }

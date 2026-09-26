@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from functools import lru_cache
 
 from langchain_core.language_models import BaseChatModel
+from langchain_core.messages import BaseMessage
 
 from app.core.config import get_settings
 
@@ -46,3 +47,12 @@ def get_assistant_models() -> AssistantModels | None:
     """FastAPI dependency. ``None`` means the assistant isn't configured (no GEMINI_API_KEY).
     Tests override this with a scripted fake model."""
     return _cached_models()
+
+
+def message_text(message: BaseMessage) -> str:
+    """Gemini may return content as a list of parts; keep only the text."""
+    content = message.content
+    if isinstance(content, str):
+        return content.strip()
+    parts = [p if isinstance(p, str) else p.get("text", "") for p in content if isinstance(p, (str, dict))]
+    return "".join(parts).strip()

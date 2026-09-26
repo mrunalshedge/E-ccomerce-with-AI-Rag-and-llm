@@ -7,9 +7,11 @@ from app.models.product import Product
 from app.models.seller import Seller
 from app.schemas.pricing import PriceBreakdown
 from app.schemas.product import ProductCreate, ProductRead
+from app.schemas.review import RatingSummary
 from app.schemas.seller import SellerCard
 from app.services.embedding_service import embed_product
 from app.services.pricing import calculate_price_breakdown
+from app.services.rating_service import rating_summaries
 
 
 def price_of(product: Product) -> PriceBreakdown:
@@ -22,7 +24,7 @@ def price_of(product: Product) -> PriceBreakdown:
     )
 
 
-def to_product_read(product: Product) -> ProductRead:
+def to_product_read(product: Product, rating: RatingSummary | None = None) -> ProductRead:
     """Build the public product response: product fields + price breakdown + seller card.
     ``product.seller`` must already be loaded."""
     return ProductRead(
@@ -37,6 +39,7 @@ def to_product_read(product: Product) -> ProductRead:
         created_at=product.created_at,
         price=price_of(product),
         seller=SellerCard.model_validate(product.seller),
+        rating=rating or RatingSummary(average=None, count=0),
     )
 
 
@@ -105,3 +108,9 @@ async def list_categories(db: AsyncSession) -> list[tuple[str, int]]:
         .order_by(func.count().desc(), Product.category)
     )
     return [(category, count) for category, count in (await db.execute(stmt)).all()]
+
+
+async def to_product_reads(db: AsyncSession, products: list[Product]) -> list[ProductRead]:
+    """Product responses with their star ratings (one aggregate query for the whole list)."""
+    ratings = await rating_summaries(db, [p.id for p in products])
+    return [to_product_read(p, ratings[p.id]) for p in products]

@@ -10,7 +10,7 @@ from langchain.agents.middleware import AgentMiddleware, ModelCallLimitMiddlewar
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.ai.llm import AssistantModels
+from app.ai.llm import AssistantModels, message_text
 from app.ai.tools import ToolContext, build_tools
 from app.core.config import get_settings
 from app.core.errors import ServiceUnavailableError
@@ -29,6 +29,8 @@ Rules:
   products, prices, discounts, delivery dates or policies. If a tool finds nothing, say so.
 - Always quote the FINAL all-inclusive price (GST, delivery and fees included) with the ₹ sign.
 - When recommending, mention the seller and their trust score; point out free delivery or low stock.
+- For questions about quality or what buyers think, use get_review_insights and say how many
+  verified reviews it's based on. Never make up reviews or ratings.
 - To search, first rewrite what the customer wants as a short English product phrase.
 - Language: {script_hint} (The app's UI language is {ui_language}.)
 - Always write product names exactly as they appear in the catalogue (in English), even inside
@@ -101,15 +103,6 @@ def _history(messages: list[ChatMessage]) -> list[BaseMessage]:
     return [HumanMessage(m.content) if m.role == "user" else AIMessage(m.content) for m in messages]
 
 
-def _text(message: BaseMessage) -> str:
-    """Gemini may return content as a list of parts; keep only the text."""
-    content = message.content
-    if isinstance(content, str):
-        return content.strip()
-    parts = [p if isinstance(p, str) else p.get("text", "") for p in content if isinstance(p, (str, dict))]
-    return "".join(parts).strip()
-
-
 async def chat(
     db: AsyncSession,
     user: User | None,
@@ -151,7 +144,7 @@ async def chat(
         logger.warning("Assistant failed: %s: %s", type(exc).__name__, exc)
         raise ServiceUnavailableError("The assistant is busy right now. Please try again in a minute.") from exc
 
-    reply = _text(result["messages"][-1]) or "Sorry, I couldn't come up with an answer. Please rephrase."
+    reply = message_text(result["messages"][-1]) or "Sorry, I couldn't come up with an answer. Please rephrase."
     # Show cards for the products the reply talks about; if it names none (e.g. a translated
     # title), fall back to the top few the tools surfaced.
     surfaced = ctx.surfaced_products()

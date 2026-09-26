@@ -7,6 +7,8 @@ import { useAuth } from "../auth/AuthProvider";
 import { PriceBreakdown } from "../components/PriceBreakdown";
 import { ProductImage } from "../components/ProductImage";
 import { QuantityStepper } from "../components/QuantityStepper";
+import { ReviewsSection } from "../components/reviews/ReviewsSection";
+import { Stars } from "../components/reviews/Stars";
 import { SellerDetails } from "../components/SellerDetails";
 import { Button } from "../components/ui/button";
 import { Badge, Card, ErrorState, Skeleton } from "../components/ui/primitives";
@@ -81,6 +83,13 @@ export function ProductPage() {
           </Link>
           <h1 className="mt-1 text-2xl font-bold leading-tight sm:text-3xl">{p.title}</h1>
           <p className="mt-1 text-sm text-muted">{t("sold_by", { name: p.seller.business_name })}</p>
+          {p.rating.count > 0 && p.rating.average !== null && (
+            <a href="#reviews-heading" className="mt-2 inline-flex items-center gap-2 text-sm hover:underline">
+              <Stars value={p.rating.average} />
+              <span className="font-semibold tabular">{p.rating.average.toFixed(1)}</span>
+              <span className="text-muted">({t("reviews_count", { n: p.rating.count })})</span>
+            </a>
+          )}
 
           <div className="mt-5">
             <div className="text-3xl font-bold tabular sm:text-4xl">{formatINR(p.price.final_price)}</div>
@@ -139,6 +148,10 @@ export function ProductPage() {
 
           <div className="mt-8">
             <SellerDetails seller={p.seller} />
+          </div>
+
+          <div className="mt-10">
+            <ReviewsSection productId={p.id} />
           </div>
         </div>
       </div>

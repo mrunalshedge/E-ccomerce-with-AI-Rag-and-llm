@@ -1,4 +1,4 @@
-import { ArrowLeft, Clock, MapPin, RotateCcw } from "lucide-react";
+import { ArrowLeft, Clock, MapPin, RotateCcw, Star } from "lucide-react";
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { toast } from "sonner";
@@ -6,12 +6,14 @@ import { toast } from "sonner";
 import { OrderTimeline } from "../components/OrderTimeline";
 import { TotalsBreakdown } from "../components/PriceBreakdown";
 import { ReturnForm } from "../components/ReturnForm";
+import { ReviewForm } from "../components/reviews/ReviewForm";
+import { Stars } from "../components/reviews/Stars";
 import { OrderStatusBadge, PaymentStatusBadge, ReturnStatusBadge } from "../components/StatusBadges";
 import { Button } from "../components/ui/button";
 import { Badge, Card, ErrorState, Skeleton } from "../components/ui/primitives";
 import { useI18n } from "../i18n/I18nProvider";
 import { formatDate, formatINR } from "../lib/format";
-import { useCancelOrder, useOrder, useReturns } from "../lib/queries";
+import { useCancelOrder, useMyReviews, useOrder, useReturns } from "../lib/queries";
 import type { Order } from "../lib/types";
 
 const RETURN_WINDOW_DAYS = 7;
@@ -29,6 +31,8 @@ export function OrderDetailPage() {
   const returns = useReturns();
   const cancel = useCancelOrder();
   const [openReturn, setOpenReturn] = useState<number | null>(null);
+  const [openReview, setOpenReview] = useState<number | null>(null);
+  const myReviews = useMyReviews();
 
   if (order.isLoading) return <Skeleton className="h-96" />;
   if (order.isError || !order.data) {
@@ -38,6 +42,7 @@ export function OrderDetailPage() {
   const o = order.data;
   const daysLeft = daysLeftToReturn(o);
   const returnByItem = new Map((returns.data ?? []).map((r) => [r.order_item_id, r]));
+  const reviewByItem = new Map((myReviews.data ?? []).map((r) => [r.order_item_id, r]));
 
   const onCancel = () => {
     if (!window.confirm(t("cancel_confirm"))) return;
@@ -101,6 +106,24 @@ export function OrderDetailPage() {
                       </div>
                       <span className="font-semibold tabular">{formatINR(item.line_total)}</span>
                     </div>
+
+                    {o.status === "delivered" && item.product_id !== null && (
+                      <div className="mt-2">
+                        {reviewByItem.has(item.id) ? (
+                          <span className="inline-flex items-center gap-2 text-sm text-muted">
+                            <Stars value={reviewByItem.get(item.id)!.rating} />
+                            {t("you_rated", { n: reviewByItem.get(item.id)!.rating })}
+                            {reviewByItem.get(item.id)!.status === "flagged" && <Badge tone="warn">{t("review_pending")}</Badge>}
+                          </span>
+                        ) : openReview === item.id ? (
+                          <ReviewForm productId={item.product_id} onDone={() => setOpenReview(null)} />
+                        ) : (
+                          <Button variant="secondary" size="sm" onClick={() => setOpenReview(item.id)}>
+                            <Star className="h-4 w-4" /> {t("write_review")}
+                          </Button>
+                        )}
+                      </div>
+                    )}
 
                     {existing ? (
                       <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">

@@ -22,7 +22,7 @@ async def list_products(
         db, category=category, q=q, page=page, page_size=page_size
     )
     return ProductListResponse(
-        items=[product_service.to_product_read(p) for p in products],
+        items=await product_service.to_product_reads(db, products),
         total=total,
         page=page,
         page_size=page_size,
@@ -38,7 +38,7 @@ async def list_categories(db: DbSession) -> list[CategoryCount]:
 @router.get("/{product_id}", response_model=ProductRead)
 async def get_product(product_id: int, db: DbSession) -> ProductRead:
     product = await product_service.get_product(db, product_id)
-    return product_service.to_product_read(product)
+    return (await product_service.to_product_reads(db, [product]))[0]
 
 
 @router.post("", response_model=ProductRead, status_code=status.HTTP_201_CREATED)

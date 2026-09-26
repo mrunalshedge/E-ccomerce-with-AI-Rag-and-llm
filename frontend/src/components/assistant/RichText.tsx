@@ -30,7 +30,9 @@ export function RichText({ text }: { text: string }) {
       continue;
     }
     flush();
-    if (line.trim()) blocks.push(<p key={`p-${blocks.length}`}>{inline(line)}</p>);
+    // Short "Label:" lines (e.g. "Pros:", "खूबियाँ:") read as mini headings.
+    const label = /^[^:]{1,24}:$/.test(line.trim());
+    if (line.trim()) blocks.push(<p key={`p-${blocks.length}`} className={label ? "font-semibold" : undefined}>{inline(line)}</p>);
   }
   flush();
   return <div className="space-y-1.5">{blocks}</div>;

@@ -17,6 +17,7 @@ from app.schemas.product import ProductCreate
 from app.schemas.seller import SellerCreate
 from app.schemas.user import UserCreate
 from app.services import product_service, seller_service, user_service
+from app.scripts.seed_reviews import seed_reviews
 from app.services.embedding_service import backfill_embeddings
 
 DEMO_PASSWORD = "DemoPass123!"
@@ -145,6 +146,7 @@ async def seed() -> None:
                 created_products += 1
         await db.commit()
         embedded = await backfill_embeddings(db)
+        reviews, flagged = await seed_reviews(db, DEMO_PASSWORD)
     await engine.dispose()
 
     print(f"Embedded {embedded} products for semantic search.")
@@ -152,6 +154,7 @@ async def seed() -> None:
     print(f"Added photos to {updated_images} existing products.")
     print(f"Seeded {created_sellers} new sellers and {created_products} new products.")
     print(f"Demo seller logins: {', '.join(email for email, _, _ in CATALOGUE)}")
+    print(f"Seeded {reviews} verified reviews ({flagged} flagged as possibly fake for the admin queue).")
     print(f"Password for all demo accounts: {DEMO_PASSWORD}")
 
 

@@ -12,7 +12,7 @@ npm run setup     # once: Python venv + packages, frontend packages, backend/.en
 npm run dev       # every time: applies DB migrations, then API on :8000 + web app on :5173
 npm test          # run the backend tests
 npm run migrate   # apply database migrations only (Alembic)
-npm run seed      # demo sellers + 14 products with photos and embeddings
+npm run seed      # demo sellers, 14 products (photos + embeddings), buyers and 23 verified reviews
 npm run embed     # (re)compute product embeddings for smart search
 ```
 Before the first `npm run dev`, put your database details in `backend/.env` (see step 2 below).
@@ -111,6 +111,7 @@ The storefront is React + TypeScript + Tailwind: catalogue with categories and s
 | Overselling | Product rows are locked (`SELECT … FOR UPDATE`) during checkout, so two buyers can't both get the last unit. |
 | Wrong / fake items | Wrong-item and counterfeit returns are always accepted within 7 days of delivery, even for "non-returnable" products. Approved ones lower the seller's trust score. |
 | Hidden seller details | Seller card (address, GSTIN, grievance officer, trust score) on every listing. |
+| Untrustworthy reviews | Only buyers with a delivered order can review. Every honest review is published, good or bad; suspected fakes are held for moderation and the page says how many are being checked. |
 | Order transparency | Every order has a status timeline (placed → shipped → delivered / cancelled) and a price snapshot from the moment of purchase. |
 
 ## Pricing rule
@@ -123,6 +124,8 @@ Every line is rounded half-up to 2 decimals, so the lines always add up to the f
 | **Smart search** (`GET /api/v1/search`) | Product text is embedded locally with a multilingual model (`paraphrase-multilingual-MiniLM-L12-v2`, 384-d, via fastembed/ONNX) and stored in **pgvector** with an HNSW index. Queries combine cosine similarity with keyword matching, so "something cool to wear in summer" finds a cotton kurta and "कान में लगाने वाला ब्लूटूथ" finds earbuds. |
 | **Shopping assistant** (`POST /api/v1/assistant/chat`) | A **LangChain** tool-calling agent on **Google Gemini** (free tier). Tools read live data (RAG): product search, full price breakdown + seller disclosure, return policy, and, for logged-in customers, their orders. Answers in English, हिंदी, मराठी or Hinglish; product cards come from the database, never from the model. Retries, a fallback model, a per-message call limit and a timeout keep it reliable within the free quota. |
 | **Voice input** | Browser Web Speech API in en-IN / hi-IN / mr-IN. |
+| **AI review summary** (`GET /api/v1/products/{id}/reviews/summary`) | Gemini summarises only published, verified reviews into a verdict + pros/cons in English, हिंदी or मराठी. Cached per language and regenerated only when new reviews arrive. |
+| **Fake-review detection** | Explainable signals (no AI quota): near-duplicate text via embeddings (flags both copies), links/phone numbers, same-star bursts, one-seller 5★ patterns, very short extreme ratings, reviews minutes after delivery. Suspicious reviews wait in an admin queue (`/api/v1/admin/reviews`) with their reasons. |
 
 Setup: add a free key from https://aistudio.google.com/apikey as `GEMINI_API_KEY` in `backend/.env`. The first run downloads the ~250 MB embedding model to `~/.cache/shopsense`.
 

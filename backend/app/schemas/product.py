@@ -4,6 +4,7 @@ from decimal import Decimal
 from pydantic import BaseModel, Field, HttpUrl, field_validator
 
 from app.schemas.pricing import PriceBreakdown
+from app.schemas.review import RatingSummary
 from app.schemas.seller import SellerCard
 
 
@@ -38,6 +39,7 @@ class ProductRead(BaseModel):
     created_at: datetime
     price: PriceBreakdown
     seller: SellerCard
+    rating: RatingSummary
 
 
 class CategoryCount(BaseModel):

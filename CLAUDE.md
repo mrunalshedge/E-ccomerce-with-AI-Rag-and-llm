@@ -42,7 +42,8 @@ backend/app/
   core/       config.py (pydantic-settings), security.py (bcrypt + JWT), errors.py,
               policies.py (business rules: max qty, return window, trust penalty)
   db/         base.py, session.py (engine, get_db), types.py (pg_enum, utcnow)
-  models/     User, Seller, Product, CartItem, Order/OrderItem/OrderEvent, ReturnRequest
+  models/     User, Seller, Product, CartItem, Order/OrderItem/OrderEvent, ReturnRequest,
+              Review (+ suspicion score/reasons, embedding), ReviewSummary (AI cache)
   schemas/    Pydantic request/response models
   services/   business logic — HTTP-agnostic (pricing, user, seller, product, cart, order, return)
   ai/         embeddings.py (fastembed multilingual MiniLM, 384-d; HashingEmbedder for tests),
@@ -100,6 +101,16 @@ docker-compose.yml  Postgres+pgvector (host port 5433) and Redis (6379), named v
   product names stay in English so cards can be matched to the reply. Cards = products the
   reply mentions, else top 3 surfaced. Provider errors → 503 "busy". Tests use ScriptedModel
   (GenericFakeChatModel with bind_tools); `RUN_LIVE_AI=1 pytest tests/test_ai_live.py` hits Gemini.
+- Reviews: only for a DELIVERED order item, one per item (`order_item_id` unique). All honest
+  reviews publish; fake-looking ones are FLAGGED (excluded from ratings, summaries, trust) until
+  an admin approves/removes. Signals (weights, flag at ≥0.6): duplicate_text 0.6 (embedding
+  cosine ≥0.92; a recent original from another account is flagged too), contact_or_link 0.5,
+  rating_burst 0.35, one_seller_5_star_pattern 0.35, short_extreme_rating 0.25,
+  reviewed_minutes_after_delivery 0.15. `create_review(now=...)` lets the seed back-date.
+- Trust score is recomputed (trust_service), never nudged: 100 − 5×approved wrong/fake returns
+  − 10×(4.0 − avg rating) once ≥5 published reviews. Call recompute after returns/reviews change.
+- AI review summary: Gemini, cached per (product, language), regenerated when the published count
+  changes; stale cache served if the model fails; needs ≥3 reviews. Labels localised (hi/mr).
 - Tests share one pooled engine per run (session event loop) and TRUNCATE between tests;
   `BCRYPT_ROUNDS=4` in tests. Full suite ≈ 2.5 min against Neon (network-bound).
 
@@ -122,6 +133,7 @@ docker-compose.yml  Postgres+pgvector (host port 5433) and Redis (6379), named v
 - **Phase 3 (done, 80 tests):** multilingual embeddings in pgvector, hybrid search, Gemini LangChain agent with
   tools (search, details, return policy, my orders, order status), chat widget with voice input (Web Speech API).
   RAG over reviews comes with Phase 4.
-- **Phase 4:** reviews (verified only, summariser, fake-review detection), seller trust score.
+- **Phase 4 (done):** verified reviews, explainable fake-review detection + admin queue, AI review
+  summaries (en/hi/mr), review-aware trust score, assistant `get_review_insights`, reviews UI.
 - **Phase 5:** grievance tracker with status timeline + AI triage; DSA features; Redis rate limiter;
   three portal UIs.

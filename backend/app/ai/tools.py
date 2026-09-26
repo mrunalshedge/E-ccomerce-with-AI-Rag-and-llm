@@ -17,9 +17,11 @@ from sqlalchemy.orm import selectinload
 from app.core.errors import NotFoundError
 from app.core.policies import RETURN_WINDOW_DAYS
 from app.models.product import Product
+from app.models.review import Review, ReviewStatus, ReviewSummary
 from app.models.user import User, UserRole
 from app.services import order_service, search_service
 from app.services.product_service import price_of
+from app.services.rating_service import rating_distribution, rating_summaries
 
 
 @dataclass
@@ -102,6 +104,39 @@ def build_tools(ctx: ToolContext) -> list[BaseTool]:
         )
 
     @tool
+    async def get_review_insights(product_id: int) -> str:
+        """What verified buyers say about a product: average rating, star distribution, the AI
+        summary of reviews (if one exists) and a few recent reviews. Use for questions like
+        "is it good?", "what do people say?", "quality kaisi hai?"."""
+        if await ctx.db.get(Product, product_id) is None:
+            return f"Product {product_id} does not exist."
+        rating = (await rating_summaries(ctx.db, [product_id]))[product_id]
+        if rating.count == 0:
+            return "This product has no published reviews yet."
+        summaries = (
+            await ctx.db.execute(select(ReviewSummary).where(ReviewSummary.product_id == product_id))
+        ).scalars().all()
+        summary = next((s.summary for s in summaries if s.language == "en"), summaries[0].summary if summaries else None)
+        recent = (
+            await ctx.db.execute(
+                select(Review)
+                .where(Review.product_id == product_id, Review.status == ReviewStatus.PUBLISHED)
+                .order_by(Review.created_at.desc())
+                .limit(3)
+            )
+        ).scalars().all()
+        return _dump(
+            {
+                "average_rating": rating.average,
+                "review_count": rating.count,
+                "star_distribution": await rating_distribution(ctx.db, product_id),
+                "ai_summary": summary,
+                "recent_reviews": [f"{r.rating}★ {r.body[:200]}" for r in recent],
+                "note": "All reviews are from verified purchases; suspected fake reviews are excluded.",
+            }
+        )
+
+    @tool
     def get_return_policy() -> str:
         """ShopSense's return and refund rules."""
         return (
@@ -153,4 +188,11 @@ def build_tools(ctx: ToolContext) -> list[BaseTool]:
             }
         )
 
-    return [search_products, get_product_details, get_return_policy, get_my_orders, get_order_status]
+    return [
+        search_products,
+        get_product_details,
+        get_review_insights,
+        get_return_policy,
+        get_my_orders,
+        get_order_status,
+    ]

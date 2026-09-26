@@ -5,6 +5,7 @@ import { useI18n } from "../i18n/I18nProvider";
 import { formatINR, isZero } from "../lib/format";
 import type { Product } from "../lib/types";
 import { ProductImage } from "./ProductImage";
+import { RatingChip } from "./reviews/Stars";
 import { TrustChip } from "./TrustScore";
 import { Badge } from "./ui/primitives";
 
@@ -30,6 +31,9 @@ export function ProductCard({ product }: { product: Product }) {
       <div className="mt-3 flex flex-1 flex-col">
         <span className="text-xs font-medium uppercase tracking-wide text-muted">{category(product.category)}</span>
         <h3 className="mt-0.5 line-clamp-2 font-semibold leading-snug group-hover:text-brand">{product.title}</h3>
+        <div className="mt-1 h-4">
+          <RatingChip average={product.rating.average} count={product.rating.count} />
+        </div>
 
         <div className="mt-2 flex items-center justify-between gap-2 text-xs text-muted">
           <span className="truncate">{seller.business_name}</span>

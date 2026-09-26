@@ -43,7 +43,8 @@ AuthHeaders = dict[str, str]
 @pytest_asyncio.fixture(scope="session")
 async def _test_engine() -> AsyncIterator[AsyncEngine]:
     """One pooled engine for the whole run (a new TLS connection to a cloud DB costs ~0.5 s)."""
-    engine = create_async_engine(get_settings().test_database_url, pool_size=5)
+    # pre_ping replaces connections dropped by the network (e.g. after the PC sleeps).
+    engine = create_async_engine(get_settings().test_database_url, pool_size=5, pool_pre_ping=True)
     try:
         async with engine.begin() as conn:
             await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))

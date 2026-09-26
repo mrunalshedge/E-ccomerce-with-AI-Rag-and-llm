@@ -16,6 +16,11 @@ import type {
   ReturnReason,
   ReturnRequest,
   Language,
+  MyReview,
+  Review,
+  ReviewList,
+  ReviewSort,
+  ReviewSummary,
   SearchResponse,
 } from "./types";
 
@@ -152,5 +157,47 @@ export function useCreateReturn() {
         json: { order_item_id: input.orderItemId, reason: input.reason, description: input.description },
       }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["returns"] }),
+  });
+}
+
+// ---------- reviews ----------
+
+export function useReviews(productId: number, sort: ReviewSort, pageSize: number) {
+  return useQuery({
+    queryKey: ["reviews", productId, sort, pageSize],
+    queryFn: () => api<ReviewList>(`/products/${productId}/reviews?sort=${sort}&page_size=${pageSize}`),
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useReviewSummary(productId: number, language: Language, enabled: boolean) {
+  return useQuery({
+    queryKey: ["review-summary", productId, language],
+    queryFn: () => api<ReviewSummary>(`/products/${productId}/reviews/summary?language=${language}`),
+    enabled,
+    staleTime: 10 * 60_000,
+    retry: false,
+  });
+}
+
+export function useMyReviews() {
+  const { isCustomer } = useAuth();
+  return useQuery({ queryKey: ["my-reviews"], queryFn: () => api<MyReview[]>("/reviews/mine"), enabled: isCustomer });
+}
+
+export function useCreateReview() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: { productId: number; rating: number; title: string; body: string }) =>
+      api<Review>(`/products/${input.productId}/reviews`, {
+        method: "POST",
+        json: { rating: input.rating, title: input.title || null, body: input.body },
+      }),
+    onSuccess: (review) => {
+      queryClient.invalidateQueries({ queryKey: ["my-reviews"] });
+      queryClient.invalidateQueries({ queryKey: ["reviews", review.product_id] });
+      queryClient.invalidateQueries({ queryKey: ["review-summary", review.product_id] });
+      queryClient.invalidateQueries({ queryKey: ["product", review.product_id] });
+    },
   });
 }

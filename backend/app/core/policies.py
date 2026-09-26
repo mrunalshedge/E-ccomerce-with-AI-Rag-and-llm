@@ -13,3 +13,14 @@ RETURN_WINDOW_DAYS = 7
 TRUST_PENALTY_WRONG_OR_FAKE = 5.0
 
 ZERO = Decimal("0.00")
+
+# Seller trust score also reflects ratings once there are enough reviews to be meaningful:
+# penalty = (TRUST_RATING_TARGET - average rating) x TRUST_RATING_WEIGHT when below target.
+TRUST_MIN_REVIEWS = 5
+TRUST_RATING_TARGET = 4.0
+TRUST_RATING_WEIGHT = 10.0
+
+# Reviews scoring at or above this suspicion level are held for admin review (not deleted).
+REVIEW_FLAG_THRESHOLD = 0.6
+# AI summaries need a few reviews to be useful.
+SUMMARY_MIN_REVIEWS = 3
