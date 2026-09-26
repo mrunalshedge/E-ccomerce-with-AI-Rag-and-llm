@@ -5,7 +5,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 
 from app.api.deps import CurrentUser, DbSession
 from app.core.security import create_access_token
-from app.schemas.user import Token, UserCreate, UserRead
+from app.schemas.user import Token, UserCreate, UserRead, UserUpdate
 from app.services import user_service
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -33,4 +33,13 @@ async def login(form: Annotated[OAuth2PasswordRequestForm, Depends()], db: DbSes
 
 @router.get("/me", response_model=UserRead)
 async def me(user: CurrentUser) -> UserRead:
+    return UserRead.model_validate(user)
+
+
+@router.patch("/me", response_model=UserRead)
+async def update_me(data: UserUpdate, user: CurrentUser, db: DbSession) -> UserRead:
+    """Update your name or preferred language (en / hi / hinglish / mr)."""
+    for field, value in data.model_dump(exclude_none=True).items():
+        setattr(user, field, value)
+    await db.commit()
     return UserRead.model_validate(user)

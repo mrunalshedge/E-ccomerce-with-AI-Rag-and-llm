@@ -77,13 +77,15 @@ cd backend
 python -m app.scripts.create_admin --name "Admin" --email admin@example.com
 ```
 
-### 6. Frontend (optional in Phase 1)
+### 6. Frontend (customer storefront)
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
-Open http://localhost:5173. `/api` requests are proxied to the backend.
+Open http://localhost:5173. `/api` requests are proxied to the backend. Load demo products with `npm run seed`.
+
+The storefront is React + TypeScript + Tailwind: catalogue with categories and search, product pages with the full price breakdown and seller card, cart, checkout (explicit payment choice), order timeline with cancel, guided wrong/fake-item returns, English/हिंदी/मराठी, and light/dark mode.
 
 ## Try the API in /docs
 1. `POST /api/v1/auth/register` with `"role": "seller"`

@@ -1,4 +1,4 @@
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -32,6 +32,7 @@ def to_product_read(product: Product) -> ProductRead:
         stock=product.stock,
         is_returnable=product.is_returnable,
         country_of_origin=product.country_of_origin,
+        image_url=product.image_url,
         created_at=product.created_at,
         price=price_of(product),
         seller=SellerCard.model_validate(product.seller),
@@ -39,15 +40,25 @@ def to_product_read(product: Product) -> ProductRead:
 
 
 async def list_products(
-    db: AsyncSession, *, category: str | None, page: int, page_size: int
+    db: AsyncSession, *, category: str | None, q: str | None = None, page: int, page_size: int
 ) -> tuple[list[Product], int]:
-    """Return one page of products (newest first) and the total count."""
-    stmt = select(Product).options(selectinload(Product.seller))
-    count_stmt = select(func.count()).select_from(Product)
+    """Return one page of products (newest first) and the total count.
+
+    ``q`` is a simple keyword filter on title/description; meaning-based search comes in Phase 3.
+    """
+    conditions = []
     if category:
-        condition = Product.category == category.strip().lower()
-        stmt = stmt.where(condition)
-        count_stmt = count_stmt.where(condition)
+        conditions.append(Product.category == category.strip().lower())
+    if q and q.strip():
+        # Escape LIKE wildcards so "50%" or "t_shirt" match literally.
+        term = q.strip().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        pattern = f"%{term}%"
+        conditions.append(
+            or_(Product.title.ilike(pattern, escape="\\"), Product.description.ilike(pattern, escape="\\"))
+        )
+
+    stmt = select(Product).options(selectinload(Product.seller)).where(*conditions)
+    count_stmt = select(func.count()).select_from(Product).where(*conditions)
 
     stmt = stmt.order_by(Product.created_at.desc(), Product.id.desc())
     stmt = stmt.offset((page - 1) * page_size).limit(page_size)
@@ -66,8 +77,20 @@ async def get_product(db: AsyncSession, product_id: int) -> Product:
 
 
 async def create_product(db: AsyncSession, seller: Seller, data: ProductCreate) -> Product:
-    product = Product(seller_id=seller.id, **data.model_dump())
+    values = data.model_dump()
+    values["image_url"] = str(data.image_url) if data.image_url else None
+    product = Product(seller_id=seller.id, **values)
     product.seller = seller  # already loaded; lets the response build without another query
     db.add(product)
     await db.commit()
     return product
+
+
+async def list_categories(db: AsyncSession) -> list[tuple[str, int]]:
+    """Categories that have products, with counts (most products first)."""
+    stmt = (
+        select(Product.category, func.count())
+        .group_by(Product.category)
+        .order_by(func.count().desc(), Product.category)
+    )
+    return [(category, count) for category, count in (await db.execute(stmt)).all()]

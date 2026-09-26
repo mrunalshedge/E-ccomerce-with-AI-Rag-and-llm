@@ -37,6 +37,11 @@ class UserCreate(BaseModel):
         return value
 
 
+class UserUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=120)
+    preferred_language: SupportedLanguage | None = None
+
+
 class UserRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

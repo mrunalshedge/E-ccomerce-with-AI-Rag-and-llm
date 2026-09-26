@@ -42,6 +42,8 @@ async def get_cart(db: AsyncSession, user: User) -> CartRead:
             CartLine(
                 product_id=item.product_id,
                 title=item.product.title,
+                category=item.product.category,
+                image_url=item.product.image_url,
                 seller_id=item.product.seller_id,
                 seller_name=item.product.seller.business_name,
                 quantity=item.quantity,

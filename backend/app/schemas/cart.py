@@ -18,6 +18,8 @@ class CartItemUpdate(BaseModel):
 class CartLine(BaseModel):
     product_id: int
     title: str
+    category: str
+    image_url: str | None
     seller_id: int
     seller_name: str
     quantity: int

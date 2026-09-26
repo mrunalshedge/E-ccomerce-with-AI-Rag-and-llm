@@ -49,7 +49,14 @@ backend/app/
   scripts/    create_admin.py (admins cannot self-register)
 backend/migrations/  Alembic (async env; 0001 Phase 1 schema, 0002 cart/orders/returns)
 backend/tests/  pytest (pricing + security run anywhere; API tests need the test DB)
-frontend/       Vite React
+frontend/       Vite + React 19 + TypeScript 7 + Tailwind v4 (customer storefront)
+  src/lib/        api.ts (fetch wrapper, token), queries.ts (TanStack Query hooks), types.ts, format.ts
+  src/i18n/       strings.ts (en/hi/mr UI text), I18nProvider (t(), category())
+  src/theme/      ThemeProvider (light/dark/system, class on <html>)
+  src/auth/       AuthProvider (JWT in localStorage, /auth/me), RequireCustomer
+  src/components/ ui/ primitives (Button, Card, Badge, Field…), PriceBreakdown, SellerDetails,
+                  ProductCard, OrderTimeline, ReturnForm, layout/Header
+  src/pages/      Home, Product, Cart, Checkout, Orders, OrderDetail, Returns, Login/Register
 docker-compose.yml  Postgres+pgvector (host port 5433) and Redis (6379), named volumes
 ```
 
@@ -68,6 +75,11 @@ docker-compose.yml  Postgres+pgvector (host port 5433) and Redis (6379), named v
 - Proper HTTP status codes (201 create, 401 bad credentials, 403 wrong role, 404, 409 duplicate, 422 validation).
 - Never hard-code secrets; everything comes from `backend/.env` (template: `.env.example`).
 - API prefix `/api/v1`. CORS allows `http://localhost:5173`.
+- Frontend: design tokens are CSS variables in `index.css` (use `bg-surface`, `text-muted`,
+  `bg-brand`, `border-line`… never raw hex); every UI string goes through `t()` with en/hi/mr
+  entries; money is formatted with `formatINR` from the API's decimal strings; mobile-first.
+  Check with `npm --prefix frontend run typecheck`. Never type passwords into the browser when
+  verifying: logged-in flows are for the user to click through (API tests cover them).
 - **Schema changes go through Alembic**: edit models → `alembic revision --autogenerate -m "..."`
   (from backend/) → review it (autogenerate duplicates shared PG enums and forgets to drop enum
   types on downgrade: create enums explicitly with `create_type=False`) → verify on the test DB with

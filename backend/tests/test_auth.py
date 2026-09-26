@@ -66,3 +66,14 @@ async def test_me_requires_valid_token(client: AsyncClient) -> None:
     assert (await client.get(ME)).status_code == 401
     bad = await client.get(ME, headers={"Authorization": "Bearer not-a-jwt"})
     assert bad.status_code == 401
+
+
+async def test_update_preferred_language(client: AsyncClient) -> None:
+    await client.post(REGISTER, json=_user())
+    token = (await client.post(LOGIN, data={"username": "asha@example.com", "password": PASSWORD})).json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    resp = await client.patch(ME, json={"preferred_language": "hi"}, headers=headers)
+    assert resp.status_code == 200
+    assert resp.json()["preferred_language"] == "hi"
+    assert (await client.patch(ME, json={"preferred_language": "fr"}, headers=headers)).status_code == 422

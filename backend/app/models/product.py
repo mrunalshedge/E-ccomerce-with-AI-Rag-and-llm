@@ -45,6 +45,7 @@ class Product(Base):
     stock: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     is_returnable: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
     country_of_origin: Mapped[str] = mapped_column(String(100), default="India", server_default="India")
+    image_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     # Deferred: never loaded unless explicitly requested (it's large and not part of responses).
     embedding: Mapped[list[float] | None] = mapped_column(Vector(EMBEDDING_DIM), nullable=True, deferred=True)
     created_at: Mapped[datetime] = mapped_column(

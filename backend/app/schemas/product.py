@@ -1,7 +1,7 @@
 from datetime import datetime
 from decimal import Decimal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, HttpUrl, field_validator
 
 from app.schemas.pricing import PriceBreakdown
 from app.schemas.seller import SellerCard
@@ -18,6 +18,7 @@ class ProductCreate(BaseModel):
     stock: int = Field(default=0, ge=0)
     is_returnable: bool = True
     country_of_origin: str = Field(default="India", min_length=2, max_length=100)
+    image_url: HttpUrl | None = None
 
     @field_validator("category")
     @classmethod
@@ -33,9 +34,15 @@ class ProductRead(BaseModel):
     stock: int
     is_returnable: bool
     country_of_origin: str
+    image_url: str | None
     created_at: datetime
     price: PriceBreakdown
     seller: SellerCard
+
+
+class CategoryCount(BaseModel):
+    category: str
+    count: int
 
 
 class ProductListResponse(BaseModel):

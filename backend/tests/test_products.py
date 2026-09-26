@@ -86,3 +86,26 @@ async def test_health(client: AsyncClient) -> None:
     resp = await client.get("/health")
     assert resp.status_code == 200
     assert resp.json() == {"status": "ok", "database": "ok"}
+
+
+async def test_keyword_search_categories_and_image_url(client: AsyncClient, register_and_login: Login) -> None:
+    headers = await register_and_login("seller")
+    await client.post("/api/v1/sellers/me", json=SELLER_PROFILE, headers=headers)
+    await client.post("/api/v1/products", json=PRODUCT, headers=headers)
+    await client.post(
+        "/api/v1/products",
+        json={**PRODUCT, "title": "Power Bank 100% charge", "category": "Electronics", "image_url": "https://example.com/pb.jpg"},
+        headers=headers,
+    )
+
+    found = (await client.get("/api/v1/products", params={"q": "power"})).json()
+    assert [p["title"] for p in found["items"]] == ["Power Bank 100% charge"]
+    assert found["items"][0]["image_url"] == "https://example.com/pb.jpg"
+    literal = (await client.get("/api/v1/products", params={"q": "100%"})).json()
+    assert literal["total"] == 1  # % is matched literally, not as a wildcard
+
+    categories = (await client.get("/api/v1/products/categories")).json()
+    assert categories == [{"category": "clothing", "count": 1}, {"category": "electronics", "count": 1}]
+
+    bad_url = await client.post("/api/v1/products", json={**PRODUCT, "image_url": "not-a-url"}, headers=headers)
+    assert bad_url.status_code == 422

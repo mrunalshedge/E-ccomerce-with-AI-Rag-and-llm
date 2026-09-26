@@ -3,7 +3,7 @@ from typing import Annotated
 from fastapi import APIRouter, Query, status
 
 from app.api.deps import CurrentSeller, DbSession
-from app.schemas.product import ProductCreate, ProductListResponse, ProductRead
+from app.schemas.product import CategoryCount, ProductCreate, ProductListResponse, ProductRead
 from app.services import product_service
 
 router = APIRouter(prefix="/products", tags=["products"])
@@ -13,12 +13,13 @@ router = APIRouter(prefix="/products", tags=["products"])
 async def list_products(
     db: DbSession,
     category: Annotated[str | None, Query(max_length=100)] = None,
+    q: Annotated[str | None, Query(max_length=100, description="Keyword in title/description")] = None,
     page: Annotated[int, Query(ge=1)] = 1,
     page_size: Annotated[int, Query(ge=1, le=100)] = 20,
 ) -> ProductListResponse:
     """Public catalogue. Every item carries its all-inclusive price breakdown and seller card."""
     products, total = await product_service.list_products(
-        db, category=category, page=page, page_size=page_size
+        db, category=category, q=q, page=page, page_size=page_size
     )
     return ProductListResponse(
         items=[product_service.to_product_read(p) for p in products],
@@ -26,6 +27,12 @@ async def list_products(
         page=page,
         page_size=page_size,
     )
+
+
+@router.get("/categories", response_model=list[CategoryCount])
+async def list_categories(db: DbSession) -> list[CategoryCount]:
+    """Categories that currently have products, for filter chips."""
+    return [CategoryCount(category=c, count=n) for c, n in await product_service.list_categories(db)]
 
 
 @router.get("/{product_id}", response_model=ProductRead)

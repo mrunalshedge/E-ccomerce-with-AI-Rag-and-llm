@@ -1,0 +1,88 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Design tokens. Clean & trustworthy: calm neutrals + one deep-green brand colour. */
+:root {
+  --bg: #f7f7f5;
+  --surface: #ffffff;
+  --surface-2: #f1f2ef;
+  --line: #e3e5e0;
+  --fg: #16201b;
+  --muted: #5b6660;
+  --brand: #15803d;
+  --brand-strong: #116632;
+  --brand-soft: #e6f4ea;
+  --on-brand: #ffffff;
+  --warn: #9a5b00;
+  --warn-soft: #fdf3e1;
+  --danger: #b42318;
+  --danger-soft: #fdecea;
+  --info: #1d4ed8;
+  --info-soft: #e8efff;
+  --ring: #15803d55;
+  color-scheme: light;
+}
+
+.dark {
+  --bg: #0d1210;
+  --surface: #141b18;
+  --surface-2: #1b2420;
+  --line: #28332e;
+  --fg: #e8efeb;
+  --muted: #9aa8a0;
+  --brand: #34c26b;
+  --brand-strong: #4fd584;
+  --brand-soft: #16301f;
+  --on-brand: #06200f;
+  --warn: #f0b457;
+  --warn-soft: #34270f;
+  --danger: #f28b82;
+  --danger-soft: #3a1714;
+  --info: #8fb1ff;
+  --info-soft: #17223d;
+  --ring: #34c26b66;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--line);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-brand: var(--brand);
+  --color-brand-strong: var(--brand-strong);
+  --color-brand-soft: var(--brand-soft);
+  --color-on-brand: var(--on-brand);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --color-ring: var(--ring);
+  --font-sans: "Inter", "Noto Sans Devanagari", ui-sans-serif, system-ui, sans-serif;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+/* Tabular digits keep prices aligned in breakdowns. */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
