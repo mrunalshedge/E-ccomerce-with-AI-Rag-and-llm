@@ -1,3 +1,5 @@
+import asyncio
+import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -7,18 +9,31 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
+from app.ai.embeddings import embed_texts
 from app.api.deps import DbSession
 from app.api.router import api_router
 from app.core.config import get_settings
 from app.core.errors import AppError
 from app.db.session import engine
 
+logger = logging.getLogger(__name__)
+
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     # Schema changes are applied with Alembic (`npm run migrate`), not at startup.
+    # Load the embedding model in the background so the first search isn't slow.
+    warm_up = asyncio.create_task(_warm_up_embeddings())
     yield
+    warm_up.cancel()
     await engine.dispose()
+
+
+async def _warm_up_embeddings() -> None:
+    try:
+        await embed_texts(["warm up"])
+    except Exception:  # e.g. offline on first run: search falls back to keywords until it loads
+        logger.exception("Embedding model warm-up failed")
 
 
 async def app_error_handler(_: Request, exc: Exception) -> JSONResponse:

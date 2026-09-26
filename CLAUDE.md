@@ -45,7 +45,9 @@ backend/app/
   models/     User, Seller, Product, CartItem, Order/OrderItem/OrderEvent, ReturnRequest
   schemas/    Pydantic request/response models
   services/   business logic — HTTP-agnostic (pricing, user, seller, product, cart, order, return)
-  ai/         (Phase 3+) LangChain / RAG
+  ai/         embeddings.py (fastembed multilingual MiniLM, 384-d; HashingEmbedder for tests),
+              llm.py (Gemini via langchain-google-genai), tools.py (agent tools over live data),
+              assistant.py (LangChain create_agent + retry/fallback/call-limit/timing middleware)
   scripts/    create_admin.py (admins cannot self-register)
 backend/migrations/  Alembic (async env; 0001 Phase 1 schema, 0002 cart/orders/returns)
 backend/tests/  pytest (pricing + security run anywhere; API tests need the test DB)
@@ -87,6 +89,17 @@ docker-compose.yml  Postgres+pgvector (host port 5433) and Redis (6379), named v
 - Orders: checkout creates one order per seller; prices are snapshotted on OrderItem and never
   recomputed; checkout requires `expected_total` == server total (409 otherwise); products are
   locked `FOR UPDATE` in id order. Fees are per unit, so totals = Σ unit final price × qty.
+- AI search (`/api/v1/search`): hybrid = pgvector cosine (HNSW index) + word-level keyword
+  match; semantic-only hits need ≥0.30 similarity and ≥50% of the best score. Embeddings are
+  computed on product create; `npm run embed` backfills. If the model can't load, search
+  degrades to keywords. Model cache lives in ~/.cache/shopsense (not in the repo/OneDrive).
+- Assistant (`/api/v1/assistant/chat`, optional auth): stateless (client sends history).
+  Primary `gemini-flash-lite-latest` (~1 s/call, reliable on free tier), fallback
+  `gemini-flash-latest` with thinking_budget=0 (thinking ≈3× latency; lite rejects budget 0).
+  A deterministic script hint (Devanagari / Hinglish word list / English) fixes reply language;
+  product names stay in English so cards can be matched to the reply. Cards = products the
+  reply mentions, else top 3 surfaced. Provider errors → 503 "busy". Tests use ScriptedModel
+  (GenericFakeChatModel with bind_tools); `RUN_LIVE_AI=1 pytest tests/test_ai_live.py` hits Gemini.
 - Tests share one pooled engine per run (session event loop) and TRUNCATE between tests;
   `BCRYPT_ROUNDS=4` in tests. Full suite ≈ 2.5 min against Neon (network-bound).
 
@@ -105,8 +118,10 @@ docker-compose.yml  Postgres+pgvector (host port 5433) and Redis (6379), named v
   role dependency, seller profile, product list/get/create with price breakdown + seller card, tests.
 - **Phase 2 (done, 67 tests passing against Neon):** cart + orders (no auto-added items, explicit payment method, no silent COD conversion),
   order price snapshot + status timeline, expected_total check, stock locking, wrong/fake-item returns with trust-score penalty, Alembic migrations.
-- **Phase 3:** AI search & assistant — embeddings in pgvector, RAG over products + reviews,
-  LangChain agent, multilingual + voice.
+- **Storefront UI (done):** React + TS + Tailwind customer storefront, en/hi/mr, dark mode, Unsplash demo photos.
+- **Phase 3 (done, 80 tests):** multilingual embeddings in pgvector, hybrid search, Gemini LangChain agent with
+  tools (search, details, return policy, my orders, order status), chat widget with voice input (Web Speech API).
+  RAG over reviews comes with Phase 4.
 - **Phase 4:** reviews (verified only, summariser, fake-review detection), seller trust score.
 - **Phase 5:** grievance tracker with status timeline + AI triage; DSA features; Redis rate limiter;
   three portal UIs.

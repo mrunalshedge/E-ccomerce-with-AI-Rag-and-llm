@@ -12,6 +12,8 @@ from typing import Any
 
 # Fast password hashing for tests (must be set before settings are first loaded).
 os.environ["BCRYPT_ROUNDS"] = "4"
+# Deterministic word-hashing embeddings: no model download, and no real AI calls in tests.
+os.environ["EMBEDDING_BACKEND"] = "fake"
 # Without a backend/.env, fall back to throwaway test-only values so the app can be imported.
 if not (Path(__file__).resolve().parents[1] / ".env").exists():
     os.environ.setdefault("POSTGRES_USER", "shopsense")

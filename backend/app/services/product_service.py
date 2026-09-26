@@ -8,6 +8,7 @@ from app.models.seller import Seller
 from app.schemas.pricing import PriceBreakdown
 from app.schemas.product import ProductCreate, ProductRead
 from app.schemas.seller import SellerCard
+from app.services.embedding_service import embed_product
 from app.services.pricing import calculate_price_breakdown
 
 
@@ -76,11 +77,21 @@ async def get_product(db: AsyncSession, product_id: int) -> Product:
     return product
 
 
+async def get_products_by_ids(db: AsyncSession, ids: list[int]) -> list[Product]:
+    """Products for the given ids, in the same order (missing ids are skipped)."""
+    if not ids:
+        return []
+    stmt = select(Product).where(Product.id.in_(ids)).options(selectinload(Product.seller))
+    by_id = {p.id: p for p in (await db.execute(stmt)).scalars().all()}
+    return [by_id[i] for i in ids if i in by_id]
+
+
 async def create_product(db: AsyncSession, seller: Seller, data: ProductCreate) -> Product:
     values = data.model_dump()
     values["image_url"] = str(data.image_url) if data.image_url else None
     product = Product(seller_id=seller.id, **values)
     product.seller = seller  # already loaded; lets the response build without another query
+    await embed_product(product)  # so it's immediately findable by meaning
     db.add(product)
     await db.commit()
     return product

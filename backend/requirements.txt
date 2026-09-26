@@ -12,6 +12,11 @@ pydantic>=2.9,<3
 pydantic-settings>=2.6
 email-validator>=2.2
 
+# --- AI (Phase 3) ---
+fastembed>=0.8              # local multilingual embeddings (ONNX, no PyTorch)
+langchain>=1.4
+langchain-google-genai>=4.4 # Gemini (free tier)
+
 # --- Auth ---
 PyJWT>=2.10
 bcrypt>=4.2

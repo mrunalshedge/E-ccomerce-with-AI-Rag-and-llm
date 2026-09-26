@@ -40,6 +40,23 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)], db: Db
 
 CurrentUser = Annotated[User, Depends(get_current_user)]
 
+_optional_oauth2 = OAuth2PasswordBearer(tokenUrl=f"{get_settings().api_v1_prefix}/auth/login", auto_error=False)
+
+
+async def get_optional_user(token: Annotated[str | None, Depends(_optional_oauth2)], db: DbSession) -> User | None:
+    """The logged-in user if a valid token was sent, otherwise ``None`` (for public endpoints that
+    do more for logged-in users). An invalid token is treated like no token."""
+    if not token:
+        return None
+    try:
+        user_id = int(decode_access_token(token)["sub"])
+    except (jwt.PyJWTError, KeyError, ValueError):
+        return None
+    return await db.get(User, user_id)
+
+
+OptionalUser = Annotated[User | None, Depends(get_optional_user)]
+
 
 def require_role(*roles: UserRole | str) -> Callable[[User], Awaitable[User]]:
     """Dependency factory: ``Depends(require_role("seller"))`` allows only those roles.

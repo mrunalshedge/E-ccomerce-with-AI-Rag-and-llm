@@ -7,6 +7,7 @@ from sqlalchemy import (
     CheckConstraint,
     DateTime,
     ForeignKey,
+    Index,
     Integer,
     Numeric,
     String,
@@ -30,6 +31,13 @@ class Product(Base):
         CheckConstraint("platform_fee >= 0", name="ck_products_platform_fee_nonneg"),
         CheckConstraint("gst_percent >= 0 AND gst_percent <= 100", name="ck_products_gst_range"),
         CheckConstraint("stock >= 0", name="ck_products_stock_nonneg"),
+        # Approximate nearest-neighbour index for cosine similarity search (pgvector HNSW).
+        Index(
+            "ix_products_embedding_hnsw",
+            "embedding",
+            postgresql_using="hnsw",
+            postgresql_ops={"embedding": "vector_cosine_ops"},
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)

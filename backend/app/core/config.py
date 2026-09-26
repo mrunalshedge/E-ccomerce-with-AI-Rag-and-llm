@@ -4,7 +4,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy import URL
 
@@ -39,6 +39,19 @@ class Settings(BaseSettings):
     bcrypt_rounds: int = Field(default=12, ge=4, le=16)
 
     cors_origins: list[str] = ["http://localhost:5173"]
+
+    # --- AI ---
+    # Gemini (free tier from https://aistudio.google.com/apikey). The assistant is disabled without a key.
+    gemini_api_key: SecretStr | None = None
+    # Lite is fast (~1.2 s) and reliable on the free tier; the full model is the fallback.
+    gemini_model: str = "gemini-flash-lite-latest"
+    gemini_fallback_model: str | None = "gemini-flash-latest"
+    assistant_timeout_seconds: float = Field(default=45, gt=0)
+    # "fastembed" runs a local multilingual model; "fake" is a fast deterministic stand-in for tests.
+    embedding_backend: Literal["fastembed", "fake"] = "fastembed"
+    embedding_model: str = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+    # Outside the project folder so the ~250 MB model isn't synced by OneDrive or committed.
+    embedding_cache_dir: Path = Path.home() / ".cache" / "shopsense" / "fastembed"
 
     def _db_url(self, database: str) -> URL:
         # URL.create escapes special characters in the password for us.

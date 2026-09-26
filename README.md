@@ -12,6 +12,8 @@ npm run setup     # once: Python venv + packages, frontend packages, backend/.en
 npm run dev       # every time: applies DB migrations, then API on :8000 + web app on :5173
 npm test          # run the backend tests
 npm run migrate   # apply database migrations only (Alembic)
+npm run seed      # demo sellers + 14 products with photos and embeddings
+npm run embed     # (re)compute product embeddings for smart search
 ```
 Before the first `npm run dev`, put your database details in `backend/.env` (see step 2 below).
 API docs: http://localhost:8000/docs · Web app: http://localhost:5173
@@ -114,3 +116,15 @@ The storefront is React + TypeScript + Tailwind: catalogue with categories and s
 ## Pricing rule
 `taxable = base + delivery + platform fee` → `GST = taxable × gst%` → `final = taxable + GST`.
 Every line is rounded half-up to 2 decimals, so the lines always add up to the final price.
+
+## AI features (all free)
+| Feature | How |
+|---|---|
+| **Smart search** (`GET /api/v1/search`) | Product text is embedded locally with a multilingual model (`paraphrase-multilingual-MiniLM-L12-v2`, 384-d, via fastembed/ONNX) and stored in **pgvector** with an HNSW index. Queries combine cosine similarity with keyword matching, so "something cool to wear in summer" finds a cotton kurta and "कान में लगाने वाला ब्लूटूथ" finds earbuds. |
+| **Shopping assistant** (`POST /api/v1/assistant/chat`) | A **LangChain** tool-calling agent on **Google Gemini** (free tier). Tools read live data (RAG): product search, full price breakdown + seller disclosure, return policy, and, for logged-in customers, their orders. Answers in English, हिंदी, मराठी or Hinglish; product cards come from the database, never from the model. Retries, a fallback model, a per-message call limit and a timeout keep it reliable within the free quota. |
+| **Voice input** | Browser Web Speech API in en-IN / hi-IN / mr-IN. |
+
+Setup: add a free key from https://aistudio.google.com/apikey as `GEMINI_API_KEY` in `backend/.env`. The first run downloads the ~250 MB embedding model to `~/.cache/shopsense`.
+
+## Credits
+Demo product photos are hot-linked from [Unsplash](https://unsplash.com) and used under the [Unsplash License](https://unsplash.com/license).

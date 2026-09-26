@@ -7,6 +7,7 @@
     "dev": "npm run migrate && concurrently -k -n api,web -c blue,green \"npm:api\" \"npm:web\"",
     "migrate": "node scripts/py.mjs -m alembic upgrade head",
     "seed": "node scripts/py.mjs -m app.scripts.seed_demo",
+    "embed": "node scripts/py.mjs -m app.scripts.embed_products",
     "api": "node scripts/py.mjs -m uvicorn app.main:app --reload --port 8000",
     "web": "npm --prefix frontend run dev",
     "test": "node scripts/py.mjs -m pytest"

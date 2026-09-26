@@ -144,3 +144,19 @@ export interface ReturnRequest {
   created_at: string;
   resolved_at: string | null;
 }
+
+export interface SearchResponse {
+  query: string;
+  items: Product[];
+  total: number;
+}
+
+export interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
+export interface ChatResponse {
+  reply: string;
+  products: Product[];
+}

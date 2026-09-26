@@ -6,6 +6,8 @@ import { api } from "./api";
 import type {
   Cart,
   CategoryCount,
+  ChatMessage,
+  ChatResponse,
   CheckoutResponse,
   Order,
   PaymentMethod,
@@ -13,18 +15,38 @@ import type {
   ProductList,
   ReturnReason,
   ReturnRequest,
+  Language,
+  SearchResponse,
 } from "./types";
 
 export const PAGE_SIZE = 12;
 
-export function useProducts(params: { q?: string; category?: string; page: number }) {
+export function useProducts(params: { category?: string; page: number }) {
   const search = new URLSearchParams({ page: String(params.page), page_size: String(PAGE_SIZE) });
-  if (params.q) search.set("q", params.q);
   if (params.category) search.set("category", params.category);
   return useQuery({
     queryKey: ["products", params],
     queryFn: () => api<ProductList>(`/products?${search}`),
     placeholderData: keepPreviousData,
+  });
+}
+
+/** Smart (semantic + keyword) search. Returns up to 24 best matches. */
+export function useSearch(params: { q: string; category?: string }) {
+  const search = new URLSearchParams({ q: params.q, limit: "24" });
+  if (params.category) search.set("category", params.category);
+  return useQuery({
+    queryKey: ["search", params],
+    queryFn: () => api<SearchResponse>(`/search?${search}`),
+    enabled: params.q.length > 0,
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useAssistantChat() {
+  return useMutation({
+    mutationFn: (input: { message: string; history: ChatMessage[]; language: Language }) =>
+      api<ChatResponse>("/assistant/chat", { method: "POST", json: input }),
   });
 }
 

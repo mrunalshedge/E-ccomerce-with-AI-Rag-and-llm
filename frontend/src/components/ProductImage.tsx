@@ -36,7 +36,7 @@ export function ProductImage({
         alt={title}
         loading="lazy"
         onError={() => setFailed(true)}
-        className={cn("aspect-square w-full rounded-xl object-cover", className)}
+        className={cn("aspect-square w-full rounded-xl bg-surface-2 object-cover", className)}
       />
     );
   }

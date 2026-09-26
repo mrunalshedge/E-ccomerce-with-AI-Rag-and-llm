@@ -1,4 +1,4 @@
-import { BadgeCheck, ChevronLeft, ChevronRight, ReceiptIndianRupee, RotateCcw, SearchX, Truck } from "lucide-react";
+import { BadgeCheck, ChevronLeft, ChevronRight, ReceiptIndianRupee, RotateCcw, SearchX, Sparkles, Truck } from "lucide-react";
 import type { ReactNode } from "react";
 import { useSearchParams } from "react-router-dom";
 
@@ -6,7 +6,7 @@ import { ProductCard } from "../components/ProductCard";
 import { Button } from "../components/ui/button";
 import { EmptyState, ErrorState, Skeleton } from "../components/ui/primitives";
 import { useI18n } from "../i18n/I18nProvider";
-import { PAGE_SIZE, useCategories, useProducts } from "../lib/queries";
+import { PAGE_SIZE, useCategories, useProducts, useSearch } from "../lib/queries";
 import { cn } from "../lib/utils";
 
 function Pillar({ icon, title, body }: { icon: ReactNode; title: string; body: string }) {
@@ -41,13 +41,16 @@ function Hero() {
 export function HomePage() {
   const { t, category: categoryLabel } = useI18n();
   const [params, setParams] = useSearchParams();
-  const q = params.get("q") ?? "";
+  const q = (params.get("q") ?? "").trim();
   const category = params.get("category") ?? "";
   const page = Math.max(1, Number(params.get("page")) || 1);
 
-  const products = useProducts({ q, category, page });
+  // Browsing uses the paginated catalogue; typing a query switches to smart (semantic) search.
+  const browse = useProducts({ category, page });
+  const search = useSearch({ q, category });
+  const products = q ? search : browse;
   const categories = useCategories();
-  const pages = products.data ? Math.max(1, Math.ceil(products.data.total / PAGE_SIZE)) : 1;
+  const pages = !q && browse.data ? Math.max(1, Math.ceil(browse.data.total / PAGE_SIZE)) : 1;
 
   const update = (changes: Record<string, string | null>) => {
     const next = new URLSearchParams(params);
@@ -84,6 +87,11 @@ export function HomePage() {
         <h2 className="text-xl font-semibold">{q ? t("results_for", { q }) : category ? categoryLabel(category) : t("all_categories")}</h2>
         {products.data && <span className="text-sm text-muted">{t("products_count", { n: products.data.total })}</span>}
       </div>
+      {q && (
+        <p className="-mt-2 mb-4 flex items-center gap-1.5 text-sm text-muted">
+          <Sparkles className="h-4 w-4 text-brand" aria-hidden /> {t("smart_search_hint")}
+        </p>
+      )}
 
       {products.isError ? (
         <ErrorState message={products.error.message} onRetry={() => products.refetch()} retryLabel={t("retry")} />

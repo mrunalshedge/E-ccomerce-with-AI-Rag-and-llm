@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 
 import { useI18n } from "../../i18n/I18nProvider";
+import { AssistantWidget } from "../assistant/AssistantWidget";
 import { Header, Logo } from "./Header";
 
 export function Layout() {
@@ -26,6 +27,7 @@ export function Layout() {
           <p>{t("footer_note")}</p>
         </div>
       </footer>
+      <AssistantWidget />
     </div>
   );
 }

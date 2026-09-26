@@ -10,3 +10,8 @@ asyncio_mode = "auto"
 # One event loop for the whole run, so a single DB connection pool can be reused across tests.
 asyncio_default_fixture_loop_scope = "session"
 asyncio_default_test_loop_scope = "session"
+filterwarnings = [
+  # Third-party (google-genai) deprecation noise on Python 3.14; not actionable here.
+  "ignore::DeprecationWarning:google.genai.*",
+]
+markers = ["live: calls the real Gemini API (opt-in: RUN_LIVE_AI=1)"]

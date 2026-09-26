@@ -27,3 +27,7 @@ class ConflictError(AppError):
 
 class PermissionDeniedError(AppError):
     status_code = 403
+
+
+class ServiceUnavailableError(AppError):
+    status_code = 503
