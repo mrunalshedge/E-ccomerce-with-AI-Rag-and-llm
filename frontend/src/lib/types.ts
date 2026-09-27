@@ -265,3 +265,17 @@ export interface AdminReview extends Review {
   moderation_note: string | null;
   product_title: string;
 }
+
+export interface SearchSuggestion {
+  text: string;
+  kind: "product" | "category" | "seller";
+  product_id: number | null;
+  category: string | null;
+}
+
+export type RecommendationReason = "bought_together" | "similar_interest" | "popular";
+
+export interface Recommendation {
+  product: Product;
+  reason: RecommendationReason;
+}

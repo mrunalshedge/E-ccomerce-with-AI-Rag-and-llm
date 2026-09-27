@@ -2,7 +2,7 @@ from fastapi import APIRouter, status
 
 from app.api.deps import CurrentUser, CustomerUser, DbSession
 from app.schemas.order import CheckoutRequest, CheckoutResponse, OrderRead
-from app.services import order_service
+from app.services import discovery_service, order_service
 from app.services.order_service import to_order_read
 
 router = APIRouter(prefix="/orders", tags=["orders"])
@@ -18,6 +18,7 @@ async def checkout(data: CheckoutRequest, user: CustomerUser, db: DbSession) -> 
     - The cart is split into one order per seller.
     """
     orders = await order_service.checkout(db, user, data)
+    discovery_service.invalidate_orders()  # new co-purchase edges
     return CheckoutResponse(
         orders=[to_order_read(o) for o in orders],
         grand_total=sum((o.grand_total for o in orders)),
@@ -38,4 +39,6 @@ async def get_order(order_id: int, user: CurrentUser, db: DbSession) -> OrderRea
 @router.post("/{order_id}/cancel", response_model=OrderRead)
 async def cancel_order(order_id: int, user: CustomerUser, db: DbSession) -> OrderRead:
     """Cancel before shipping. Stock is restored and prepaid amounts are refunded."""
-    return to_order_read(await order_service.cancel_order(db, user, order_id))
+    order = await order_service.cancel_order(db, user, order_id)
+    discovery_service.invalidate_orders()
+    return to_order_read(order)

@@ -3,6 +3,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 
 import { useAuth } from "../auth/AuthProvider";
 import { api } from "./api";
+import { getRecentLocal, rememberRecentLocal } from "./recent";
 import type {
   Cart,
   AdminGrievance,
@@ -24,8 +25,10 @@ import type {
   Review,
   ReviewList,
   ReviewSort,
+  Recommendation,
   ReviewSummary,
   SearchResponse,
+  SearchSuggestion,
 } from "./types";
 
 export const PAGE_SIZE = 12;
@@ -293,3 +296,65 @@ export const useResolveReturn = () =>
   useAdminMutation((input: { id: number; decision: "approve" | "reject"; note: string }) =>
     api<ReturnRequest>(`/admin/returns/${input.id}/resolve`, { method: "POST", json: { decision: input.decision, note: input.note } }),
   );
+
+// ---------- discovery ----------
+
+export function useSuggestions(prefix: string) {
+  return useQuery({
+    queryKey: ["suggest", prefix],
+    queryFn: () => api<SearchSuggestion[]>(`/search/suggest?q=${encodeURIComponent(prefix)}&limit=8`),
+    enabled: prefix.trim().length > 0,
+    staleTime: 60_000,
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useRecommendations(limit = 8) {
+  const { user } = useAuth();
+  // Guests are personalised from what they viewed in this browser.
+  const seen = user ? "" : getRecentLocal().slice(0, 12).join(",");
+  return useQuery({
+    queryKey: ["recommendations", user?.id ?? "guest", seen, limit],
+    queryFn: () => api<Recommendation[]>(`/recommendations?limit=${limit}${seen ? `&seen=${seen}` : ""}`),
+    staleTime: 60_000,
+  });
+}
+
+export function useBoughtTogether(productId: number) {
+  return useQuery({
+    queryKey: ["bought-together", productId],
+    queryFn: () => api<Product[]>(`/products/${productId}/bought-together?limit=4`),
+    staleTime: 5 * 60_000,
+  });
+}
+
+/** Recently viewed: from the account when logged in, else from this browser. */
+export function useRecentlyViewed(excludeId?: number) {
+  const { user } = useAuth();
+  const localIds = user ? [] : getRecentLocal();
+  return useQuery({
+    queryKey: ["recently-viewed", user?.id ?? "guest", localIds.join(",")],
+    queryFn: async () => {
+      const products = user
+        ? await api<Product[]>("/me/recently-viewed")
+        : (await Promise.all(localIds.slice(0, 8).map((id) => api<Product>(`/products/${id}`).catch(() => null)))).filter(
+            (p): p is Product => p !== null,
+          );
+      return products.filter((p) => p.id !== excludeId);
+    },
+    staleTime: 30_000,
+  });
+}
+
+export function useRecordView() {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+  return (productId: number) => {
+    rememberRecentLocal(productId);
+    if (user) {
+      api<null>(`/me/recently-viewed/${productId}`, { method: "POST" })
+        .then(() => queryClient.invalidateQueries({ queryKey: ["recently-viewed"] }))
+        .catch(() => undefined);
+    }
+  };
+}

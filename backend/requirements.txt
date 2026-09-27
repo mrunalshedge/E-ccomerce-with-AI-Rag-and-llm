@@ -17,6 +17,9 @@ fastembed>=0.8              # local multilingual embeddings (ONNX, no PyTorch)
 langchain>=1.4
 langchain-google-genai>=4.4 # Gemini (free tier)
 
+# --- Rate limiting (uses Redis when REDIS_URL is reachable, else in-memory) ---
+redis>=5
+
 # --- Auth ---
 PyJWT>=2.10
 bcrypt>=4.2

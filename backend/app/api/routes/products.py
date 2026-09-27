@@ -4,7 +4,7 @@ from fastapi import APIRouter, Query, status
 
 from app.api.deps import CurrentSeller, DbSession
 from app.schemas.product import CategoryCount, ProductCreate, ProductListResponse, ProductRead
-from app.services import product_service
+from app.services import discovery_service, product_service
 
 router = APIRouter(prefix="/products", tags=["products"])
 
@@ -45,4 +45,5 @@ async def get_product(product_id: int, db: DbSession) -> ProductRead:
 async def create_product(data: ProductCreate, seller: CurrentSeller, db: DbSession) -> ProductRead:
     """List a new product. Requires the seller role and a seller profile."""
     product = await product_service.create_product(db, seller, data)
+    discovery_service.invalidate_catalogue()  # new title for autocomplete
     return product_service.to_product_read(product)

@@ -46,6 +46,7 @@ backend/app/
               Review (+ suspicion score/reasons, embedding), ReviewSummary (AI cache)
   schemas/    Pydantic request/response models
   services/   business logic — HTTP-agnostic (pricing, user, seller, product, cart, order, return)
+  dsa/        trie.py, lru.py, topk.py, graph.py, rate_limit.py (hand-written, unit-tested)
   ai/         embeddings.py (fastembed multilingual MiniLM, 384-d; HashingEmbedder for tests),
               llm.py (Gemini via langchain-google-genai), tools.py (agent tools over live data),
               assistant.py (LangChain create_agent + retry/fallback/call-limit/timing middleware)
@@ -119,6 +120,14 @@ docker-compose.yml  Postgres+pgvector (host port 5433) and Redis (6379), named v
   customer's script (reuses assistant `_script_hint`). Admin: /admin/overview, /admin/grievances.
 - Admin panel UI strings are English-only (`adminStrings`); customer strings must exist in en/hi/mr.
 - Demo logins (seed): admin@shopsense.dev, demo.customer@…, priya.sharma@… etc., password DemoPass123!
+- DSA (5B): services/discovery_service.py caches the autocomplete Trie (TTL 300 s) and the
+  CoPurchaseGraph (TTL 120 s) in memory; invalidate_catalogue()/invalidate_orders() are called on
+  product create / checkout / cancel. Recently viewed = LRU of per-user LRUs (in-process; guests keep
+  the same list in localStorage). Recommendations = top_k over scored in-stock candidates.
+- Rate limiting: core/rate_limit.py `rate_limit(scope, limit, window, per="ip"|"user")` dependency;
+  Redis sorted-set backend if REDIS_URL pings at startup, else in-memory sliding log. Limits: login
+  10/min/IP, register 5/10min/IP, search 60/min, suggest 120/min, assistant 20/min/user, complaints
+  5/10min/user, reviews 10/h/user. Tests set RATE_LIMIT_ENABLED=false; test_discovery re-enables it.
 - Tests share one pooled engine per run (session event loop) and TRUNCATE between tests;
   `BCRYPT_ROUNDS=4` in tests. Full suite ≈ 2.5 min against Neon (network-bound).
 
@@ -145,6 +154,6 @@ docker-compose.yml  Postgres+pgvector (host port 5433) and Redis (6379), named v
   summaries (en/hi/mr), review-aware trust score, assistant `get_review_insights`, reviews UI.
 - **Phase 5A (done):** grievance tracker + AI triage with guardrails, admin panel (overview, complaints,
   review moderation, returns).
-- **Phase 5B (next):** trie autocomplete, heap top-K recs, LRU recently viewed, co-purchase graph,
-  sliding-window rate limiter (Redis if available, else in-memory).
+- **Phase 5B (done):** trie autocomplete, heap top-K recs, LRU recently viewed, co-purchase graph
+  (2-hop fallback), sliding-window rate limiter (Redis if available, else in-memory).
 - **Phase 5C:** seller dashboard.

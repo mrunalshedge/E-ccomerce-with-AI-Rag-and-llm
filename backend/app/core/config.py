@@ -31,6 +31,8 @@ class Settings(BaseSettings):
     sql_echo: bool = False
 
     redis_url: str = "redis://localhost:6379/0"
+    # Sliding-window rate limits on login, search and AI endpoints (tests turn this off).
+    rate_limit_enabled: bool = True
 
     jwt_secret_key: str = Field(min_length=32)
     jwt_algorithm: str = "HS256"

@@ -14,6 +14,7 @@ from app.api.deps import DbSession
 from app.api.router import api_router
 from app.core.config import get_settings
 from app.core.errors import AppError
+from app.core.rate_limit import init_rate_limiter
 from app.db.session import engine
 
 logger = logging.getLogger(__name__)
@@ -24,6 +25,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     # Schema changes are applied with Alembic (`npm run migrate`), not at startup.
     # Load the embedding model in the background so the first search isn't slow.
     warm_up = asyncio.create_task(_warm_up_embeddings())
+    logger.info("Rate limiting: %s", await init_rate_limiter())
     yield
     warm_up.cancel()
     await engine.dispose()

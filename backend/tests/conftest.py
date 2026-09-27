@@ -14,6 +14,8 @@ from typing import Any
 os.environ["BCRYPT_ROUNDS"] = "4"
 # Deterministic word-hashing embeddings: no model download, and no real AI calls in tests.
 os.environ["EMBEDDING_BACKEND"] = "fake"
+# Many logins from one test "IP" would trip the limits; the rate-limit test enables them itself.
+os.environ["RATE_LIMIT_ENABLED"] = "false"
 # Without a backend/.env, fall back to throwaway test-only values so the app can be imported.
 if not (Path(__file__).resolve().parents[1] / ".env").exists():
     os.environ.setdefault("POSTGRES_USER", "shopsense")
@@ -34,6 +36,7 @@ from app.db.session import get_db
 from app.main import app
 from app.models.user import UserRole
 from app.schemas.user import UserCreate
+from app.services import discovery_service
 from app.services.user_service import create_user
 from tests.data import ADDRESS, PRODUCT, SELLER_PROFILE
 
@@ -63,6 +66,9 @@ async def db_engine(_test_engine: AsyncEngine) -> AsyncEngine:
     tables = ", ".join(t.name for t in Base.metadata.sorted_tables)
     async with _test_engine.begin() as conn:
         await conn.execute(text(f"TRUNCATE {tables} RESTART IDENTITY CASCADE"))
+    # In-memory structures built from the DB must not leak between tests either.
+    discovery_service.invalidate_orders()
+    discovery_service.recently_viewed = discovery_service.RecentlyViewed()
     return _test_engine
 
 

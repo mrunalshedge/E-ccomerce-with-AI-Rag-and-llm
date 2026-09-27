@@ -1,16 +1,17 @@
 from decimal import Decimal
 from typing import Annotated
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
 
 from app.api.deps import DbSession
+from app.core.rate_limit import rate_limit
 from app.schemas.search import SearchResponse
 from app.services import product_service, search_service
 
 router = APIRouter(prefix="/search", tags=["search"])
 
 
-@router.get("", response_model=SearchResponse)
+@router.get("", response_model=SearchResponse, dependencies=[Depends(rate_limit("search", limit=60, window_seconds=60))])
 async def search(
     db: DbSession,
     q: Annotated[str, Query(min_length=1, max_length=200, description="What you're looking for, in any language")],

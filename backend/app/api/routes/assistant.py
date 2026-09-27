@@ -5,13 +5,18 @@ from fastapi import APIRouter, Depends
 from app.ai import assistant
 from app.ai.llm import AssistantModels, get_assistant_models
 from app.api.deps import DbSession, OptionalUser
+from app.core.rate_limit import rate_limit
 from app.schemas.assistant import ChatRequest, ChatResponse
 from app.services import product_service
 
 router = APIRouter(prefix="/assistant", tags=["assistant"])
 
 
-@router.post("/chat", response_model=ChatResponse)
+@router.post(
+    "/chat",
+    response_model=ChatResponse,
+    dependencies=[Depends(rate_limit("assistant", limit=20, window_seconds=60, per="user"))],
+)
 async def chat(
     data: ChatRequest,
     db: DbSession,

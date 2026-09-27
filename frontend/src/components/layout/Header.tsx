@@ -1,6 +1,6 @@
-import { ChevronDown, Gauge, Languages, LifeBuoy, LogOut, Moon, Package, RotateCcw, Search, ShieldCheck, ShoppingCart, Sun, SunMoon, UserRound } from "lucide-react";
-import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { ChevronDown, Gauge, Languages, LifeBuoy, LogOut, Moon, Package, RotateCcw, ShieldCheck, ShoppingCart, Sun, SunMoon, UserRound } from "lucide-react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Link, useNavigate } from "react-router-dom";
 
 import { useAuth } from "../../auth/AuthProvider";
 import { LANGUAGES, useI18n } from "../../i18n/I18nProvider";
@@ -10,6 +10,7 @@ import { useCart } from "../../lib/queries";
 import type { Language } from "../../lib/types";
 import { cn } from "../../lib/utils";
 import { useTheme, type ThemeChoice } from "../../theme/ThemeProvider";
+import { SearchBar } from "./SearchBar";
 import { buttonVariants } from "../ui/button";
 
 export function Logo() {
@@ -60,36 +61,6 @@ function Menu({ label, trigger, children }: { label: string; trigger: ReactNode;
 }
 
 const menuItem = "flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm hover:bg-surface-2";
-
-function SearchBar({ className }: { className?: string }) {
-  const { t } = useI18n();
-  const navigate = useNavigate();
-  const [params] = useSearchParams();
-  const [q, setQ] = useState(params.get("q") ?? "");
-  useEffect(() => {
-    setQ(params.get("q") ?? "");
-  }, [params]);
-
-  const submit = (e: FormEvent) => {
-    e.preventDefault();
-    const next = new URLSearchParams();
-    if (q.trim()) next.set("q", q.trim());
-    navigate(`/?${next}`);
-  };
-  return (
-    <form onSubmit={submit} role="search" className={cn("relative", className)}>
-      <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" aria-hidden />
-      <input
-        type="search"
-        value={q}
-        onChange={(e) => setQ(e.target.value)}
-        placeholder={t("search_placeholder")}
-        aria-label={t("search")}
-        className="h-11 w-full rounded-xl border border-line bg-surface-2 pl-10 pr-4 text-sm placeholder:text-muted/80 focus:border-brand focus:bg-surface focus:outline-none focus:ring-4 focus:ring-ring"
-      />
-    </form>
-  );
-}
 
 export function Header() {
   const { t, lang, setLang } = useI18n();

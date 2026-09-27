@@ -130,5 +130,16 @@ Every line is rounded half-up to 2 decimals, so the lines always add up to the f
 
 Setup: add a free key from https://aistudio.google.com/apikey as `GEMINI_API_KEY` in `backend/.env`. The first run downloads the ~250 MB embedding model to `~/.cache/shopsense`.
 
+## Data structures & algorithms
+Hand-written in `backend/app/dsa/`, each with unit tests in `tests/test_dsa.py`:
+
+| Feature | Structure | Complexity |
+|---|---|---|
+| Search autocomplete (`/search/suggest`) | Trie; every node caches its top-K suggestions; titles indexed from each word | O(prefix length) per keystroke |
+| Recently viewed (`/me/recently-viewed`) | LRU cache (hash map + doubly linked list), as an LRU of per-user LRUs to bound memory | O(1) |
+| Recommendations (`/recommendations`) | Bounded min-heap top-K over scored candidates (co-purchase + category interest + popularity + rating), with a reason per item | O(n log k) |
+| Frequently bought together (`/products/{id}/bought-together`) | Weighted undirected co-purchase graph (adjacency map) with a 2-hop BFS fallback | O(degree · log k) |
+| Rate limiting (login, search, AI, complaints, reviews) | Sliding-window log: deque per key in memory, or a Redis sorted set via MULTI/EXEC | amortised O(1) |
+
 ## Credits
 Demo product photos are hot-linked from [Unsplash](https://unsplash.com) and used under the [Unsplash License](https://unsplash.com/license).

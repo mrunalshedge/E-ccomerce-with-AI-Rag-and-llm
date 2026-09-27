@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, status
 
 from app.ai.llm import AssistantModels, get_assistant_models
 from app.api.deps import CurrentUser, CustomerUser, DbSession
+from app.core.rate_limit import rate_limit
 from app.schemas.grievance import GrievanceComment, GrievanceCreate, GrievanceRead
 from app.services import grievance_service
 from app.services.grievance_service import to_grievance_read
@@ -11,7 +12,12 @@ from app.services.grievance_service import to_grievance_read
 router = APIRouter(prefix="/grievances", tags=["grievances"])
 
 
-@router.post("", response_model=GrievanceRead, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "",
+    response_model=GrievanceRead,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(rate_limit("grievance", limit=5, window_seconds=600, per="user"))],
+)
 async def raise_grievance(
     data: GrievanceCreate,
     user: CustomerUser,

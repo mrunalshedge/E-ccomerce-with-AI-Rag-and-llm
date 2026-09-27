@@ -1,10 +1,11 @@
-import { ArrowLeft, Globe, PackageCheck, PackageX, ShieldCheck, ShoppingCart } from "lucide-react";
-import { useState } from "react";
+import { ArrowLeft, Globe, Link2, PackageCheck, PackageX, ShieldCheck, ShoppingCart } from "lucide-react";
+import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 
 import { useAuth } from "../auth/AuthProvider";
 import { PriceBreakdown } from "../components/PriceBreakdown";
+import { ProductRail } from "../components/ProductRail";
 import { ProductImage } from "../components/ProductImage";
 import { QuantityStepper } from "../components/QuantityStepper";
 import { ReviewsSection } from "../components/reviews/ReviewsSection";
@@ -14,7 +15,7 @@ import { Button } from "../components/ui/button";
 import { Badge, Card, ErrorState, Skeleton } from "../components/ui/primitives";
 import { useI18n } from "../i18n/I18nProvider";
 import { formatINR } from "../lib/format";
-import { useAddToCart, useProduct } from "../lib/queries";
+import { useAddToCart, useBoughtTogether, useProduct, useRecordView } from "../lib/queries";
 
 const MAX_PER_ITEM = 10;
 
@@ -27,6 +28,13 @@ export function ProductPage() {
   const product = useProduct(Number(id));
   const addToCart = useAddToCart();
   const [quantity, setQuantity] = useState(1);
+  const recordView = useRecordView();
+  const together = useBoughtTogether(Number(id));
+  const productId = product.data?.id;
+  useEffect(() => {
+    if (productId) recordView(productId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per product
+  }, [productId]);
 
   if (product.isLoading) {
     return (
@@ -154,6 +162,14 @@ export function ProductPage() {
             <ReviewsSection productId={p.id} />
           </div>
         </div>
+      </div>
+
+      <div className="mt-12">
+        <ProductRail
+          title={t("bought_together_title")}
+          icon={<Link2 className="h-5 w-5 text-brand" aria-hidden />}
+          products={together.data ?? []}
+        />
       </div>
     </div>
   );

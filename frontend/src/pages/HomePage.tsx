@@ -1,12 +1,13 @@
-import { BadgeCheck, ChevronLeft, ChevronRight, ReceiptIndianRupee, RotateCcw, SearchX, Sparkles, Truck } from "lucide-react";
+import { BadgeCheck, History, ChevronLeft, ChevronRight, ReceiptIndianRupee, RotateCcw, SearchX, Sparkles, Truck } from "lucide-react";
 import type { ReactNode } from "react";
 import { useSearchParams } from "react-router-dom";
 
 import { ProductCard } from "../components/ProductCard";
+import { ProductRail } from "../components/ProductRail";
 import { Button } from "../components/ui/button";
 import { EmptyState, ErrorState, Skeleton } from "../components/ui/primitives";
 import { useI18n } from "../i18n/I18nProvider";
-import { PAGE_SIZE, useCategories, useProducts, useSearch } from "../lib/queries";
+import { PAGE_SIZE, useCategories, useProducts, useRecentlyViewed, useRecommendations, useSearch } from "../lib/queries";
 import { cn } from "../lib/utils";
 
 function Pillar({ icon, title, body }: { icon: ReactNode; title: string; body: string }) {
@@ -35,6 +36,28 @@ function Hero() {
         <Pillar icon={<Truck className="h-5 w-5" />} title={t("trust_track_title")} body={t("trust_track_body")} />
       </div>
     </section>
+  );
+}
+
+function DiscoveryRails() {
+  const { t } = useI18n();
+  const recs = useRecommendations(10);
+  const recent = useRecentlyViewed();
+  const items = recs.data ?? [];
+  const personal = items.some((r) => r.reason !== "popular");
+  const labels = Object.fromEntries(
+    items.filter((r) => r.reason === "bought_together").map((r) => [r.product.id, t("rec_bought_together")]),
+  );
+  return (
+    <>
+      <ProductRail
+        title={personal ? t("recommended_for_you") : t("trending_now")}
+        icon={<Sparkles className="h-5 w-5 text-brand" aria-hidden />}
+        products={items.map((r) => r.product)}
+        labels={labels}
+      />
+      <ProductRail title={t("recently_viewed")} icon={<History className="h-5 w-5 text-muted" aria-hidden />} products={recent.data ?? []} />
+    </>
   );
 }
 
@@ -70,7 +93,12 @@ export function HomePage() {
 
   return (
     <>
-      {!q && !category && page === 1 && <Hero />}
+      {!q && !category && page === 1 && (
+        <>
+          <Hero />
+          <DiscoveryRails />
+        </>
+      )}
 
       <div className="-mx-4 mb-5 flex gap-2 overflow-x-auto px-4 pb-1" role="tablist" aria-label="Categories">
         <button role="tab" aria-selected={!category} className={chip(!category)} onClick={() => update({ category: null, page: null })}>

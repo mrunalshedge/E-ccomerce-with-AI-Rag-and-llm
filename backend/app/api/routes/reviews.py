@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, Query, status
 
 from app.ai.llm import AssistantModels, get_assistant_models
 from app.api.deps import CustomerUser, DbSession
+from app.core.rate_limit import rate_limit
 from app.schemas.review import (
     MyReview,
     ReviewCreate,
@@ -47,7 +48,12 @@ async def list_reviews(
     )
 
 
-@router.post("/products/{product_id}/reviews", response_model=ReviewRead, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/products/{product_id}/reviews",
+    response_model=ReviewRead,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(rate_limit("review", limit=10, window_seconds=3600, per="user"))],
+)
 async def create_review(product_id: int, data: ReviewCreate, user: CustomerUser, db: DbSession) -> ReviewRead:
     """Review a product you bought and received. `status` is `flagged` if it looks fake
     (an admin checks it before it counts)."""
