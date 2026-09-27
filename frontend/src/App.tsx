@@ -18,6 +18,7 @@ import { ComplaintPage } from "./pages/help/ComplaintPage";
 import { HelpPage } from "./pages/help/HelpPage";
 import { NewComplaintPage } from "./pages/help/NewComplaintPage";
 import { ReturnsPage } from "./pages/ReturnsPage";
+import { SellerPage } from "./pages/seller/SellerPage";
 
 function NotFound() {
   const { t } = useI18n();
@@ -47,6 +48,7 @@ export default function App() {
         <Route path="help/new" element={<RequireCustomer><NewComplaintPage /></RequireCustomer>} />
         <Route path="help/:id" element={<RequireCustomer><ComplaintPage /></RequireCustomer>} />
         <Route path="admin/*" element={<AdminPage />} />
+        <Route path="seller/*" element={<SellerPage />} />
         <Route path="*" element={<NotFound />} />
       </Route>
     </Routes>

@@ -1,4 +1,4 @@
-import { ChevronDown, Gauge, Languages, LifeBuoy, LogOut, Moon, Package, RotateCcw, ShieldCheck, ShoppingCart, Sun, SunMoon, UserRound } from "lucide-react";
+import { ChevronDown, Gauge, Languages, LifeBuoy, LogOut, Store, Moon, Package, RotateCcw, ShieldCheck, ShoppingCart, Sun, SunMoon, UserRound } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
@@ -134,6 +134,9 @@ export function Header() {
                       <Link to="/help" className={menuItem} onClick={close}><LifeBuoy className="h-4 w-4" />{t("help_menu")}</Link>
                     </>
                   )}
+                  {user.role === "seller" && (
+                    <Link to="/seller" className={menuItem} onClick={close}><Store className="h-4 w-4" />{t("seller_dashboard")}</Link>
+                  )}
                   {user.role === "admin" && (
                     <Link to="/admin" className={menuItem} onClick={close}><Gauge className="h-4 w-4" />{t("admin_panel")}</Link>
                   )}
@@ -151,11 +154,6 @@ export function Header() {
       <div className="px-4 pb-3 md:hidden">
         <SearchBar />
       </div>
-      {user?.role === "seller" && (
-        <div className="border-t border-line bg-info-soft px-4 py-2 text-center text-sm text-info">
-          {t("seller_dashboard_soon")}
-        </div>
-      )}
     </header>
   );
 }

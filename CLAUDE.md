@@ -128,6 +128,8 @@ docker-compose.yml  Postgres+pgvector (host port 5433) and Redis (6379), named v
   Redis sorted-set backend if REDIS_URL pings at startup, else in-memory sliding log. Limits: login
   10/min/IP, register 5/10min/IP, search 60/min, suggest 120/min, assistant 20/min/user, complaints
   5/10min/user, reviews 10/h/user. Tests set RATE_LIMIT_ENABLED=false; test_discovery re-enables it.
+- Seller product edits: PATCH /sellers/me/products/{id}; null = unchanged for required fields; title/
+  description/category changes re-embed; route invalidates the autocomplete trie.
 - Tests share one pooled engine per run (session event loop) and TRUNCATE between tests;
   `BCRYPT_ROUNDS=4` in tests. Full suite ≈ 2.5 min against Neon (network-bound).
 
@@ -156,4 +158,6 @@ docker-compose.yml  Postgres+pgvector (host port 5433) and Redis (6379), named v
   review moderation, returns).
 - **Phase 5B (done):** trie autocomplete, heap top-K recs, LRU recently viewed, co-purchase graph
   (2-hop fallback), sliding-window rate limiter (Redis if available, else in-memory).
-- **Phase 5C:** seller dashboard.
+- **Phase 5C (done):** seller portal (/seller): onboarding, dashboard stats + trust breakdown, product
+  add/edit with live price preview (GET /pricing/preview uses the one pricing function), orders
+  (ship/deliver), returns & reviews. Seller + admin UI strings are English-only (fallback).

@@ -279,3 +279,68 @@ export interface Recommendation {
   product: Product;
   reason: RecommendationReason;
 }
+
+export interface SellerProfile extends SellerCard {
+  user_id: number;
+  created_at: string;
+}
+
+export interface TrustBreakdown {
+  score: number;
+  wrong_or_fake_returns: number;
+  return_penalty: number;
+  average_rating: number | null;
+  review_count: number;
+  rating_penalty: number;
+  min_reviews_for_rating_penalty: number;
+  rating_target: number;
+}
+
+export interface SellerDashboard {
+  to_ship: number;
+  in_transit: number;
+  delivered_30d: number;
+  revenue_30d: Money;
+  open_returns: number;
+  products: number;
+  low_stock: number;
+  average_rating: number | null;
+  review_count: number;
+  trust: TrustBreakdown;
+}
+
+export interface SellerReview {
+  id: number;
+  product_id: number;
+  product_title: string;
+  rating: number;
+  title: string | null;
+  body: string;
+  reviewer: string;
+  created_at: string;
+}
+
+/** Fields a seller edits (money as strings, exactly as typed). */
+export interface ProductInput {
+  title: string;
+  description: string;
+  category: string;
+  base_price: string;
+  delivery_fee: string;
+  platform_fee: string;
+  gst_percent: string;
+  stock: number;
+  is_returnable: boolean;
+  country_of_origin: string;
+  image_url: string | null;
+}
+
+export interface SellerProfileInput {
+  business_name: string;
+  contact_email: string;
+  phone: string;
+  address: string;
+  gstin: string | null;
+  grievance_officer_name: string;
+  grievance_officer_email: string;
+}

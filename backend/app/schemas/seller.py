@@ -47,3 +47,38 @@ class SellerCard(BaseModel):
 class SellerRead(SellerCard):
     user_id: int
     created_at: datetime
+
+
+class TrustBreakdownRead(BaseModel):
+    score: float
+    wrong_or_fake_returns: int
+    return_penalty: float
+    average_rating: float | None
+    review_count: int
+    rating_penalty: float
+    min_reviews_for_rating_penalty: int
+    rating_target: float
+
+
+class SellerDashboard(BaseModel):
+    to_ship: int
+    in_transit: int
+    delivered_30d: int
+    revenue_30d: str
+    open_returns: int
+    products: int
+    low_stock: int
+    average_rating: float | None
+    review_count: int
+    trust: TrustBreakdownRead
+
+
+class SellerReviewRead(BaseModel):
+    id: int
+    product_id: int
+    product_title: str
+    rating: int
+    title: str | None
+    body: str
+    reviewer: str
+    created_at: datetime

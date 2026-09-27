@@ -2,7 +2,7 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useAuth } from "../auth/AuthProvider";
-import { api } from "./api";
+import { ApiError, api } from "./api";
 import { getRecentLocal, rememberRecentLocal } from "./recent";
 import type {
   Cart,
@@ -29,6 +29,13 @@ import type {
   ReviewSummary,
   SearchResponse,
   SearchSuggestion,
+  PriceBreakdown,
+  ProductInput,
+  SellerDashboard,
+  SellerProfile,
+  SellerProfileInput,
+  SellerReview,
+  OrderStatus,
 } from "./types";
 
 export const PAGE_SIZE = 12;
@@ -357,4 +364,89 @@ export function useRecordView() {
         .catch(() => undefined);
     }
   };
+}
+
+// ---------- seller portal ----------
+
+function useIsSeller(): boolean {
+  return useAuth().user?.role === "seller";
+}
+
+/** The seller's profile, or null if they haven't created one yet (404). */
+export function useSellerProfile() {
+  return useQuery({
+    queryKey: ["seller", "profile"],
+    queryFn: () =>
+      api<SellerProfile>("/sellers/me").catch((error: unknown) => {
+        if (error instanceof ApiError && error.status === 404) return null;
+        throw error;
+      }),
+    enabled: useIsSeller(),
+  });
+}
+
+function useSellerMutation<T, R>(fn: (input: T) => Promise<R>) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: fn,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["seller"] });
+      queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["product"] });
+    },
+  });
+}
+
+export const useCreateSellerProfile = () =>
+  useSellerMutation((input: SellerProfileInput) => api<SellerProfile>("/sellers/me", { method: "POST", json: input }));
+
+export function useSellerDashboard() {
+  return useQuery({ queryKey: ["seller", "dashboard"], queryFn: () => api<SellerDashboard>("/sellers/me/dashboard"), enabled: useIsSeller() });
+}
+
+export function useSellerProducts() {
+  return useQuery({ queryKey: ["seller", "products"], queryFn: () => api<Product[]>("/sellers/me/products"), enabled: useIsSeller() });
+}
+
+export const useCreateProduct = () =>
+  useSellerMutation((input: ProductInput) => api<Product>("/products", { method: "POST", json: input }));
+
+export const useUpdateProduct = () =>
+  useSellerMutation((input: { id: number; changes: Partial<ProductInput> }) =>
+    api<Product>(`/sellers/me/products/${input.id}`, { method: "PATCH", json: input.changes }),
+  );
+
+export function useSellerOrders() {
+  return useQuery({ queryKey: ["seller", "orders"], queryFn: () => api<Order[]>("/sellers/me/orders"), enabled: useIsSeller() });
+}
+
+export const useUpdateOrderStatus = () =>
+  useSellerMutation((input: { id: number; status: Extract<OrderStatus, "shipped" | "delivered"> }) =>
+    api<Order>(`/sellers/me/orders/${input.id}/status`, { method: "PATCH", json: { status: input.status } }),
+  );
+
+export function useSellerReturns() {
+  return useQuery({ queryKey: ["seller", "returns"], queryFn: () => api<ReturnRequest[]>("/sellers/me/returns"), enabled: useIsSeller() });
+}
+
+export function useSellerReviews() {
+  return useQuery({ queryKey: ["seller", "reviews"], queryFn: () => api<SellerReview[]>("/sellers/me/reviews"), enabled: useIsSeller() });
+}
+
+/** Live customer price for the numbers being typed (the server's pricing rule, not a copy). */
+export function usePricePreview(input: { base: string; delivery: string; platform: string; gst: string }) {
+  const valid = [input.base, input.delivery, input.platform, input.gst].every((v) => v !== "" && Number(v) >= 0) && Number(input.base) > 0;
+  const params = new URLSearchParams({
+    base_price: input.base,
+    delivery_fee: input.delivery,
+    platform_fee: input.platform,
+    gst_percent: input.gst,
+  });
+  return useQuery({
+    queryKey: ["price-preview", params.toString()],
+    queryFn: () => api<PriceBreakdown>(`/pricing/preview?${params}`),
+    enabled: valid,
+    placeholderData: keepPreviousData,
+    retry: false,
+  });
 }

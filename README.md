@@ -79,7 +79,7 @@ cd backend
 python -m app.scripts.create_admin --name "Admin" --email admin@example.com
 ```
 
-### 6. Frontend (customer storefront)
+### 6. Frontend (customer storefront, seller portal, admin panel)
 ```bash
 cd frontend
 npm install
@@ -118,6 +118,15 @@ The storefront is React + TypeScript + Tailwind: catalogue with categories and s
 ## Pricing rule
 `taxable = base + delivery + platform fee` → `GST = taxable × gst%` → `final = taxable + GST`.
 Every line is rounded half-up to 2 decimals, so the lines always add up to the final price.
+
+## Three portals
+| Role | Where | What |
+|---|---|---|
+| Customer | storefront | search (with autocomplete), AI assistant, cart, checkout, orders, returns, reviews, complaints |
+| Seller | `/seller` | onboarding, dashboard + trust-score breakdown, add/edit products with a live "customers will see ₹X" preview, ship/deliver orders, returns & reviews |
+| Admin | `/admin` | overview, complaints queue (by priority + deadline), review moderation (with fake-review reasons), return approvals |
+
+Demo logins (after `npm run seed`, password `DemoPass123!`): customer `demo.customer@shopsense.dev`, seller `demo.seller@shopsense.dev`, admin `admin@shopsense.dev`.
 
 ## AI features (all free)
 | Feature | How |
