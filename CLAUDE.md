@@ -118,7 +118,7 @@ docker-compose.yml  Postgres+pgvector (host port 5433) and Redis (6379), named v
   NEVER auto-resolves wrong/fake, damaged, refund, payment, seller, or high/urgent cases. Bad JSON or
   provider failure → keyword `rule_based` triage (en/Hinglish/hi). Reply language follows the
   customer's script (reuses assistant `_script_hint`). Admin: /admin/overview, /admin/grievances.
-- Admin panel UI strings are English-only (`adminStrings`); customer strings must exist in en/hi/mr.
+- All UI strings (storefront, seller portal `adminStrings`+`adminHi`/`adminMr`, admin panel) must exist in en/hi/mr; the `Record<...>` types make a missing translation a compile error.
 - Demo logins (seed): admin@shopsense.dev, demo.customer@…, priya.sharma@… etc., password DemoPass123!
 - DSA (5B): services/discovery_service.py caches the autocomplete Trie (TTL 300 s) and the
   CoPurchaseGraph (TTL 120 s) in memory; invalidate_catalogue()/invalidate_orders() are called on
@@ -160,4 +160,4 @@ docker-compose.yml  Postgres+pgvector (host port 5433) and Redis (6379), named v
   (2-hop fallback), sliding-window rate limiter (Redis if available, else in-memory).
 - **Phase 5C (done):** seller portal (/seller): onboarding, dashboard stats + trust breakdown, product
   add/edit with live price preview (GET /pricing/preview uses the one pricing function), orders
-  (ship/deliver), returns & reviews. Seller + admin UI strings are English-only (fallback).
+  (ship/deliver), returns & reviews. Fully translated (en/hi/mr).
