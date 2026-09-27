@@ -24,3 +24,9 @@ TRUST_RATING_WEIGHT = 10.0
 REVIEW_FLAG_THRESHOLD = 0.6
 # AI summaries need a few reviews to be useful.
 SUMMARY_MIN_REVIEWS = 3
+
+# Grievances (Consumer Protection (E-Commerce) Rules 2020): acknowledge within 48 hours,
+# resolve within one month. Customers can reopen an answered complaint for 14 days.
+GRIEVANCE_ACK_HOURS = 48
+GRIEVANCE_RESOLVE_DAYS = 30
+GRIEVANCE_REOPEN_DAYS = 14

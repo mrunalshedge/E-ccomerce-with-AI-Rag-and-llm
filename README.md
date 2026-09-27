@@ -112,6 +112,7 @@ The storefront is React + TypeScript + Tailwind: catalogue with categories and s
 | Wrong / fake items | Wrong-item and counterfeit returns are always accepted within 7 days of delivery, even for "non-returnable" products. Approved ones lower the seller's trust score. |
 | Hidden seller details | Seller card (address, GSTIN, grievance officer, trust score) on every listing. |
 | Untrustworthy reviews | Only buyers with a delivered order can review. Every honest review is published, good or bad; suspected fakes are held for moderation and the page says how many are being checked. |
+| Poor grievance handling | Complaints are acknowledged instantly and tracked on a timeline with a one-month deadline. AI answers pure information questions (with the real order data) and is **never** allowed to close money, fake-item, damage or seller complaints; those go to the grievance team, most urgent first. |
 | Order transparency | Every order has a status timeline (placed → shipped → delivered / cancelled) and a price snapshot from the moment of purchase. |
 
 ## Pricing rule

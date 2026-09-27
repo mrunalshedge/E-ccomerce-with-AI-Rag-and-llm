@@ -204,3 +204,64 @@ export interface MyReview {
   rating: number;
   status: ReviewStatus;
 }
+
+export type GrievanceStatus = "open" | "in_progress" | "ai_resolved" | "resolved";
+export type GrievanceCategory =
+  | "delivery"
+  | "wrong_or_fake_item"
+  | "damaged"
+  | "refund"
+  | "payment"
+  | "seller"
+  | "account"
+  | "other";
+export type GrievancePriority = "low" | "medium" | "high" | "urgent";
+
+export interface GrievanceEvent {
+  status: GrievanceStatus;
+  actor: "customer" | "ai" | "admin";
+  note: string;
+  created_at: string;
+}
+
+export interface Grievance {
+  id: number;
+  order_id: number | null;
+  subject: string;
+  description: string;
+  category: GrievanceCategory;
+  priority: GrievancePriority;
+  status: GrievanceStatus;
+  ai_reply: string | null;
+  created_at: string;
+  acknowledged_at: string | null;
+  resolve_by: string;
+  resolved_at: string | null;
+  overdue: boolean;
+  can_reopen: boolean;
+  timeline: GrievanceEvent[];
+}
+
+export interface AdminGrievance extends Grievance {
+  customer_name: string;
+  customer_email: string;
+  ai_summary: string | null;
+  triaged_by: "ai" | "rules";
+}
+
+export interface AdminOverview {
+  open_grievances: number;
+  urgent_or_high: number;
+  overdue_grievances: number;
+  flagged_reviews: number;
+  pending_returns: number;
+  orders_today: number;
+  revenue_today: Money;
+}
+
+export interface AdminReview extends Review {
+  suspicion_score: number;
+  suspicion_reasons: string[];
+  moderation_note: string | null;
+  product_title: string;
+}

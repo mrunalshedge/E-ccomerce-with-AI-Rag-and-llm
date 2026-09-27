@@ -17,6 +17,7 @@ from app.schemas.product import ProductCreate
 from app.schemas.seller import SellerCreate
 from app.schemas.user import UserCreate
 from app.services import product_service, seller_service, user_service
+from app.scripts.seed_grievances import ADMIN_EMAIL, seed_admin, seed_grievances
 from app.scripts.seed_reviews import seed_reviews
 from app.services.embedding_service import backfill_embeddings
 
@@ -147,6 +148,8 @@ async def seed() -> None:
         await db.commit()
         embedded = await backfill_embeddings(db)
         reviews, flagged = await seed_reviews(db, DEMO_PASSWORD)
+        admin_created = await seed_admin(db, DEMO_PASSWORD)
+        complaints = await seed_grievances(db)
     await engine.dispose()
 
     print(f"Embedded {embedded} products for semantic search.")
@@ -155,6 +158,8 @@ async def seed() -> None:
     print(f"Seeded {created_sellers} new sellers and {created_products} new products.")
     print(f"Demo seller logins: {', '.join(email for email, _, _ in CATALOGUE)}")
     print(f"Seeded {reviews} verified reviews ({flagged} flagged as possibly fake for the admin queue).")
+    print(f"Seeded {complaints} demo complaints.")
+    print(f"Admin login: {ADMIN_EMAIL}" + (" (created)" if admin_created else ""))
     print(f"Password for all demo accounts: {DEMO_PASSWORD}")
 
 

@@ -111,6 +111,14 @@ docker-compose.yml  Postgres+pgvector (host port 5433) and Redis (6379), named v
   − 10×(4.0 − avg rating) once ≥5 published reviews. Call recompute after returns/reviews change.
 - AI review summary: Gemini, cached per (product, language), regenerated when the published count
   changes; stale cache served if the model fails; needs ≥3 reviews. Labels localised (hi/mr).
+- Grievances (5A): SLA per Consumer Protection (E-Commerce) Rules: acknowledged instantly by triage,
+  resolve_by = +30 days, reopen within 14 days. ai/triage.py: Gemini returns strict JSON
+  (category, priority, auto_resolve, reply, summary); `apply_guardrails` enforces priority floors and
+  NEVER auto-resolves wrong/fake, damaged, refund, payment, seller, or high/urgent cases. Bad JSON or
+  provider failure → keyword `rule_based` triage (en/Hinglish/hi). Reply language follows the
+  customer's script (reuses assistant `_script_hint`). Admin: /admin/overview, /admin/grievances.
+- Admin panel UI strings are English-only (`adminStrings`); customer strings must exist in en/hi/mr.
+- Demo logins (seed): admin@shopsense.dev, demo.customer@…, priya.sharma@… etc., password DemoPass123!
 - Tests share one pooled engine per run (session event loop) and TRUNCATE between tests;
   `BCRYPT_ROUNDS=4` in tests. Full suite ≈ 2.5 min against Neon (network-bound).
 
@@ -135,5 +143,8 @@ docker-compose.yml  Postgres+pgvector (host port 5433) and Redis (6379), named v
   RAG over reviews comes with Phase 4.
 - **Phase 4 (done):** verified reviews, explainable fake-review detection + admin queue, AI review
   summaries (en/hi/mr), review-aware trust score, assistant `get_review_insights`, reviews UI.
-- **Phase 5:** grievance tracker with status timeline + AI triage; DSA features; Redis rate limiter;
-  three portal UIs.
+- **Phase 5A (done):** grievance tracker + AI triage with guardrails, admin panel (overview, complaints,
+  review moderation, returns).
+- **Phase 5B (next):** trie autocomplete, heap top-K recs, LRU recently viewed, co-purchase graph,
+  sliding-window rate limiter (Redis if available, else in-memory).
+- **Phase 5C:** seller dashboard.

@@ -1,4 +1,4 @@
-import { ChevronDown, Languages, LogOut, Moon, Package, RotateCcw, Search, ShieldCheck, ShoppingCart, Sun, SunMoon, UserRound } from "lucide-react";
+import { ChevronDown, Gauge, Languages, LifeBuoy, LogOut, Moon, Package, RotateCcw, Search, ShieldCheck, ShoppingCart, Sun, SunMoon, UserRound } from "lucide-react";
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
@@ -160,7 +160,11 @@ export function Header() {
                     <>
                       <Link to="/orders" className={menuItem} onClick={close}><Package className="h-4 w-4" />{t("my_orders")}</Link>
                       <Link to="/returns" className={menuItem} onClick={close}><RotateCcw className="h-4 w-4" />{t("my_returns")}</Link>
+                      <Link to="/help" className={menuItem} onClick={close}><LifeBuoy className="h-4 w-4" />{t("help_menu")}</Link>
                     </>
+                  )}
+                  {user.role === "admin" && (
+                    <Link to="/admin" className={menuItem} onClick={close}><Gauge className="h-4 w-4" />{t("admin_panel")}</Link>
                   )}
                   <button className={cn(menuItem, "text-danger")} onClick={() => { close(); logout(); navigate("/"); }}>
                     <LogOut className="h-4 w-4" />{t("logout")}
@@ -176,9 +180,9 @@ export function Header() {
       <div className="px-4 pb-3 md:hidden">
         <SearchBar />
       </div>
-      {user && user.role !== "customer" && (
+      {user?.role === "seller" && (
         <div className="border-t border-line bg-info-soft px-4 py-2 text-center text-sm text-info">
-          {user.role === "seller" ? t("seller_dashboard_soon") : t("admin_panel_soon")}
+          {t("seller_dashboard_soon")}
         </div>
       )}
     </header>

@@ -5,7 +5,11 @@ import { useAuth } from "../auth/AuthProvider";
 import { api } from "./api";
 import type {
   Cart,
+  AdminGrievance,
+  AdminOverview,
+  AdminReview,
   CategoryCount,
+  Grievance,
   ChatMessage,
   ChatResponse,
   CheckoutResponse,
@@ -201,3 +205,91 @@ export function useCreateReview() {
     },
   });
 }
+
+// ---------- grievances ----------
+
+export function useGrievances() {
+  const { isCustomer } = useAuth();
+  return useQuery({ queryKey: ["grievances"], queryFn: () => api<Grievance[]>("/grievances"), enabled: isCustomer });
+}
+
+export function useGrievance(id: number) {
+  const { user } = useAuth();
+  return useQuery({ queryKey: ["grievances", id], queryFn: () => api<Grievance>(`/grievances/${id}`), enabled: Boolean(user) });
+}
+
+function useGrievanceMutation<T>(fn: (input: T) => Promise<Grievance>) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: fn,
+    onSuccess: (g) => {
+      queryClient.setQueryData(["grievances", g.id], g);
+      queryClient.invalidateQueries({ queryKey: ["grievances"], exact: true });
+    },
+  });
+}
+
+export const useCreateGrievance = () =>
+  useGrievanceMutation((input: { orderId: number | null; subject: string; description: string; language: Language }) =>
+    api<Grievance>("/grievances", {
+      method: "POST",
+      json: { order_id: input.orderId, subject: input.subject, description: input.description, language: input.language },
+    }),
+  );
+
+export const useGrievanceComment = () =>
+  useGrievanceMutation((input: { id: number; message: string }) =>
+    api<Grievance>(`/grievances/${input.id}/comments`, { method: "POST", json: { message: input.message } }),
+  );
+
+export const useReopenGrievance = () =>
+  useGrievanceMutation((input: { id: number; message: string }) =>
+    api<Grievance>(`/grievances/${input.id}/reopen`, { method: "POST", json: { message: input.message } }),
+  );
+
+// ---------- admin ----------
+
+function useIsAdmin(): boolean {
+  return useAuth().user?.role === "admin";
+}
+
+export function useAdminOverview() {
+  return useQuery({ queryKey: ["admin", "overview"], queryFn: () => api<AdminOverview>("/admin/overview"), enabled: useIsAdmin() });
+}
+
+export function useAdminGrievances() {
+  return useQuery({ queryKey: ["admin", "grievances"], queryFn: () => api<AdminGrievance[]>("/admin/grievances"), enabled: useIsAdmin() });
+}
+
+export function useAdminReviews() {
+  return useQuery({ queryKey: ["admin", "reviews"], queryFn: () => api<AdminReview[]>("/admin/reviews"), enabled: useIsAdmin() });
+}
+
+export function useAdminReturns() {
+  return useQuery({
+    queryKey: ["admin", "returns"],
+    queryFn: () => api<ReturnRequest[]>("/admin/returns?status=requested"),
+    enabled: useIsAdmin(),
+  });
+}
+
+/** Admin actions refresh every admin list plus the overview numbers. */
+function useAdminMutation<T, R>(fn: (input: T) => Promise<R>) {
+  const queryClient = useQueryClient();
+  return useMutation({ mutationFn: fn, onSuccess: () => queryClient.invalidateQueries({ queryKey: ["admin"] }) });
+}
+
+export const useAdminUpdateGrievance = () =>
+  useAdminMutation((input: { id: number; status: "in_progress" | "resolved"; note: string }) =>
+    api<AdminGrievance>(`/admin/grievances/${input.id}/update`, { method: "POST", json: { status: input.status, note: input.note } }),
+  );
+
+export const useModerateReview = () =>
+  useAdminMutation((input: { id: number; action: "approve" | "remove"; note: string }) =>
+    api<AdminReview>(`/admin/reviews/${input.id}/moderate`, { method: "POST", json: { action: input.action, note: input.note } }),
+  );
+
+export const useResolveReturn = () =>
+  useAdminMutation((input: { id: number; decision: "approve" | "reject"; note: string }) =>
+    api<ReturnRequest>(`/admin/returns/${input.id}/resolve`, { method: "POST", json: { decision: input.decision, note: input.note } }),
+  );

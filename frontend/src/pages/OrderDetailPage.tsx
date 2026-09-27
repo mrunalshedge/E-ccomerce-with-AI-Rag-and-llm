@@ -1,4 +1,4 @@
-import { ArrowLeft, Clock, MapPin, RotateCcw, Star } from "lucide-react";
+import { ArrowLeft, Clock, LifeBuoy, MapPin, RotateCcw, Star } from "lucide-react";
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { toast } from "sonner";
@@ -9,7 +9,7 @@ import { ReturnForm } from "../components/ReturnForm";
 import { ReviewForm } from "../components/reviews/ReviewForm";
 import { Stars } from "../components/reviews/Stars";
 import { OrderStatusBadge, PaymentStatusBadge, ReturnStatusBadge } from "../components/StatusBadges";
-import { Button } from "../components/ui/button";
+import { Button, buttonVariants } from "../components/ui/button";
 import { Badge, Card, ErrorState, Skeleton } from "../components/ui/primitives";
 import { useI18n } from "../i18n/I18nProvider";
 import { formatDate, formatINR } from "../lib/format";
@@ -166,6 +166,9 @@ export function OrderDetailPage() {
             </h2>
             <p className="whitespace-pre-line text-sm text-muted">{o.shipping_address}</p>
           </Card>
+          <Link to={`/help/new?order=${o.id}`} className={buttonVariants({ variant: "outline", className: "w-full" })}>
+            <LifeBuoy className="h-4 w-4" /> {t("need_help_order")}
+          </Link>
         </aside>
       </div>
     </div>

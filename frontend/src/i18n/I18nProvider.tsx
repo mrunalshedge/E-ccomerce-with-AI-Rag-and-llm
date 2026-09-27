@@ -48,10 +48,10 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   const value = useMemo<I18nValue>(() => {
     const dict = DICTIONARIES[lang];
     const t = (key: StringKey, vars?: Vars) =>
-      (dict[key] ?? DICTIONARIES.en[key]).replace(/\{(\w+)\}/g, (_, name: string) => String(vars?.[name] ?? `{${name}}`));
+      (dict[key] ?? DICTIONARIES.en[key] ?? key).replace(/\{(\w+)\}/g, (_, name: string) => String(vars?.[name] ?? `{${name}}`));
     const category = (slug: string) => {
       const key = `cat_${slug}` as StringKey;
-      return key in dict ? dict[key] : slug.charAt(0).toUpperCase() + slug.slice(1);
+      return dict[key] ?? slug.charAt(0).toUpperCase() + slug.slice(1);
     };
     return { lang, setLang, t, category };
   }, [lang, setLang]);
