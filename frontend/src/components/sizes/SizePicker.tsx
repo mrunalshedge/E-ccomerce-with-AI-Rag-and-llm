@@ -1,9 +1,10 @@
-import { Ruler, Sparkles, X } from "lucide-react";
+import { PersonStanding, Ruler, Sparkles, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { useI18n } from "../../i18n/I18nProvider";
 import { MEASUREMENTS, type FitSummary, type SizeChartRow, type SizeStock } from "../../lib/types";
 import { cn } from "../../lib/utils";
+import { FitVisualiser } from "../fit/FitVisualiser";
 
 const CM_PER_INCH = 2.54;
 
@@ -21,7 +22,10 @@ interface SizePickerProps {
 export function SizePicker({ sizes, value, onChange, chart, fit, error, onAskAssistant }: SizePickerProps) {
   const { t } = useI18n();
   const [chartOpen, setChartOpen] = useState(false);
+  const [fitOpen, setFitOpen] = useState(false);
   const selected = sizes.find((s) => s.size === value);
+  // The 3D fit view needs at least one body-girth measurement in the chart.
+  const canVisualise = Boolean(chart?.some((row) => row.chest !== undefined || row.waist !== undefined || row.hip !== undefined));
 
   return (
     <fieldset id="size-picker" className="mt-6 scroll-mt-24" aria-describedby={error ? "size-error" : undefined}>
@@ -76,8 +80,20 @@ export function SizePicker({ sizes, value, onChange, chart, fit, error, onAskAss
         <p className="mt-2 text-sm font-medium text-warn">{t("size_left", { n: selected.stock, s: selected.size })}</p>
       )}
       {fit && <FitLine fit={fit} />}
+      {canVisualise && chart && (
+        <>
+          <button
+            type="button"
+            onClick={() => setFitOpen(true)}
+            className="mt-3 inline-flex items-center gap-2 rounded-xl border border-brand px-3 py-2 text-sm font-medium text-brand hover:bg-brand-soft"
+          >
+            <PersonStanding className="h-4 w-4" aria-hidden /> {t("see_fit")}
+          </button>
+          <FitVisualiser open={fitOpen} onClose={() => setFitOpen(false)} chart={chart} sizes={sizes} initialSize={value} onChoose={onChange} />
+        </>
+      )}
       {onAskAssistant && (
-        <button type="button" onClick={onAskAssistant} className="mt-2 inline-flex items-center gap-1.5 text-sm text-brand hover:underline">
+        <button type="button" onClick={onAskAssistant} className="mt-2 flex items-center gap-1.5 text-sm text-brand hover:underline">
           <Sparkles className="h-4 w-4" aria-hidden /> {t("size_help")}
         </button>
       )}

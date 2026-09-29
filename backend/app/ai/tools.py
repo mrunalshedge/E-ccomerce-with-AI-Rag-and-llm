@@ -52,6 +52,8 @@ def _summary(product: Product) -> dict:
         "in_stock": product.stock > 0,
         **({"sizes_in_stock": [v.size for v in product.variants if v.stock > 0]} if product.has_sizes else {}),
         "returnable": product.is_returnable,
+        **({"view_in_3d_and_ar": True} if product.model_url else {}),
+        **({"try_on_wrist_with_camera": True} if product.try_on else {}),
         "seller": product.seller.business_name,
         "seller_trust_score": round(product.seller.trust_score),
     }
@@ -66,7 +68,8 @@ def build_tools(ctx: ToolContext) -> list[BaseTool]:
             query: What the customer wants, rewritten as a short ENGLISH product search phrase
                 (translate Hindi/Marathi/Hinglish first, e.g. "gaana sunne ke liye" -> "earphones").
             max_price_inr: Optional budget: maximum all-inclusive price in rupees.
-            category: Optional: one of clothing, home, grocery, electronics, books.
+            category: Optional: one of clothing, footwear, accessories, home, kitchen, grocery,
+                electronics, books, beauty, sports, toys.
         """
         hits = await search_service.search_products(
             ctx.db,

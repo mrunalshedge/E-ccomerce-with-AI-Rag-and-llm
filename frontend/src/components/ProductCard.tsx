@@ -1,4 +1,4 @@
-import { Truck } from "lucide-react";
+import { Box, Truck, Watch } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { useI18n } from "../i18n/I18nProvider";
@@ -50,6 +50,16 @@ export function ProductCard({ product }: { product: Product }) {
               </Badge>
             )}
             {!soldOut && product.stock <= 5 && <Badge tone="warn">{t("only_left", { n: product.stock })}</Badge>}
+            {product.try_on && (
+              <Badge tone="info">
+                <Watch className="h-3 w-3" aria-hidden /> {t("try_on_badge")}
+              </Badge>
+            )}
+            {product.model_url && (
+              <Badge tone="info">
+                <Box className="h-3 w-3" aria-hidden /> {t("has_3d")}
+              </Badge>
+            )}
           </div>
         </div>
       </div>

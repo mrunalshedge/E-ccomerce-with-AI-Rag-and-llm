@@ -51,6 +51,9 @@ def to_product_read(
         is_returnable=product.is_returnable,
         country_of_origin=product.country_of_origin,
         image_url=product.image_url,
+        model_url=product.model_url,
+        model_credit=product.model_credit,
+        try_on=product.try_on,
         created_at=product.created_at,
         price=price_of(product),
         seller=SellerCard.model_validate(product.seller),
@@ -108,8 +111,9 @@ async def get_products_by_ids(db: AsyncSession, ids: list[int]) -> list[Product]
 
 
 async def create_product(db: AsyncSession, seller: Seller, data: ProductCreate) -> Product:
-    values = data.model_dump(exclude={"sizes", "size_chart"})
+    values = data.model_dump(exclude={"sizes", "size_chart"})  # try_on is dumped to a plain dict
     values["image_url"] = str(data.image_url) if data.image_url else None
+    values["model_url"] = str(data.model_url) if data.model_url else None
     product = Product(seller_id=seller.id, **values)
     product.variants = [ProductVariant(size=s.size, stock=s.stock, position=i) for i, s in enumerate(data.sizes or [])]
     product.size_chart = data.size_chart or None

@@ -3,13 +3,19 @@ import { useState, type FormEvent } from "react";
 
 import { useI18n } from "../../i18n/I18nProvider";
 import { usePricePreview } from "../../lib/queries";
-import type { Product, ProductInput } from "../../lib/types";
+import type { Product, ProductInput, WristTryOn } from "../../lib/types";
 import { PriceBreakdown } from "../PriceBreakdown";
 import { Button } from "../ui/button";
 import { Card, Field, Input, Textarea } from "../ui/primitives";
 import { SizeEditor, draftFrom, draftProblems, payloadFrom, type SizeDraft } from "./SizeEditor";
 
 const GST_RATES = ["0", "5", "12", "18", "28"];
+const DEFAULT_TRY_ON: WristTryOn = { kind: "wrist", case_mm: 40, dial_color: "#f4f4f2", case_color: "#c7cad0", strap_color: "#16181b" };
+const TRY_ON_COLORS = [
+  ["dial_color", "seller_try_on_dial"],
+  ["case_color", "seller_try_on_case_color"],
+  ["strap_color", "seller_try_on_strap"],
+] as const;
 
 function fromProduct(p?: Product): ProductInput {
   return {
@@ -24,6 +30,9 @@ function fromProduct(p?: Product): ProductInput {
     is_returnable: p?.is_returnable ?? true,
     country_of_origin: p?.country_of_origin ?? "India",
     image_url: p?.image_url ?? null,
+    model_url: p?.model_url ?? null,
+    model_credit: p?.model_credit ?? null,
+    try_on: p?.try_on ?? null,
     sizes: null, // kept in the size editor's draft until submit
     size_chart: null,
   };
@@ -51,7 +60,10 @@ export function ProductForm({
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    if (valid) onSubmit({ ...form, image_url: form.image_url?.trim() || null, ...payloadFrom(sizeDraft) });
+    if (valid) onSubmit({ ...form, image_url: form.image_url?.trim() || null,
+        model_url: form.model_url?.trim() || null,
+        model_credit: form.model_credit?.trim() || null,
+        ...payloadFrom(sizeDraft), });
   };
   const money = (key: "base_price" | "delivery_fee" | "platform_fee") => (
     <Input id={key} inputMode="decimal" value={form[key]} onChange={(e) => set(key, e.target.value.replace(/[^\d.]/g, ""))} />
@@ -109,6 +121,50 @@ export function ProductForm({
         <Field id="image" label={t("seller_field_image")}>
           <Input id="image" type="url" value={form.image_url ?? ""} onChange={(e) => set("image_url", e.target.value)} placeholder="https://…" />
         </Field>
+        <Field id="model_url" label={t("seller_field_model")} hint={t("seller_field_model_hint")}>
+          <Input id="model_url" type="url" value={form.model_url ?? ""} onChange={(e) => set("model_url", e.target.value)} placeholder="https://…/model.glb" />
+        </Field>
+        {form.model_url?.trim() && (
+          <Field id="model_credit" label={t("seller_field_model_credit")}>
+            <Input id="model_credit" value={form.model_credit ?? ""} onChange={(e) => set("model_credit", e.target.value)} maxLength={200} />
+          </Field>
+        )}
+        <fieldset className="space-y-3 rounded-xl border border-line p-4">
+          <label className="flex items-center gap-2 text-sm font-medium">
+            <input
+              type="checkbox"
+              checked={form.try_on !== null}
+              onChange={(e) => set("try_on", e.target.checked ? DEFAULT_TRY_ON : null)}
+              className="h-4 w-4 accent-[var(--brand)]"
+            />
+            {t("seller_try_on")}
+          </label>
+          {form.try_on && (
+            <div className="grid gap-3 sm:grid-cols-4">
+              <Field id="case_mm" label={t("seller_try_on_case")}>
+                <Input
+                  id="case_mm"
+                  type="number"
+                  min={20}
+                  max={60}
+                  value={form.try_on.case_mm}
+                  onChange={(e) => set("try_on", { ...form.try_on!, case_mm: Math.min(60, Math.max(20, Number(e.target.value) || 40)) })}
+                />
+              </Field>
+              {TRY_ON_COLORS.map(([key, label]) => (
+                <Field key={key} id={key} label={t(label)}>
+                  <input
+                    id={key}
+                    type="color"
+                    value={form.try_on![key]}
+                    onChange={(e) => set("try_on", { ...form.try_on!, [key]: e.target.value })}
+                    className="h-11 w-full cursor-pointer rounded-xl border border-line bg-surface p-1"
+                  />
+                </Field>
+              ))}
+            </div>
+          )}
+        </fieldset>
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" checked={form.is_returnable} onChange={(e) => set("is_returnable", e.target.checked)} className="h-4 w-4 accent-[var(--brand)]" />
           {t("seller_field_returnable")}

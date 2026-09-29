@@ -42,8 +42,9 @@ async def update_product(db: AsyncSession, seller: Seller, product_id: int, data
     product = (await db.execute(stmt)).scalar_one_or_none()
     if product is None:  # also when it's another seller's product: don't reveal it exists
         raise NotFoundError(f"Product {product_id} not found")
-    # Only the photo can be cleared; null for any required field means "leave unchanged".
-    changes = {k: v for k, v in data.model_dump(exclude_unset=True).items() if v is not None or k == "image_url"}
+    # Only optional extras (photo, 3D model) can be cleared; null for a required field means "leave unchanged".
+    clearable = {"image_url", "model_url", "model_credit", "try_on"}
+    changes = {k: v for k, v in data.model_dump(exclude_unset=True).items() if v is not None or k in clearable}
     sizes, chart = changes.pop("sizes", None), changes.pop("size_chart", None)
     if sizes is not None:
         _replace_sizes(product, data.sizes or [])
@@ -57,8 +58,9 @@ async def update_product(db: AsyncSession, seller: Seller, product_id: int, data
     if product.has_sizes:
         changes.pop("stock", None)  # per-size stock wins; the total is derived below
         product.stock = sum(v.stock for v in product.variants)
-    if "image_url" in changes:
-        changes["image_url"] = str(changes["image_url"]) if changes["image_url"] else None
+    for key in ("image_url", "model_url"):
+        if key in changes:
+            changes[key] = str(changes[key]) if changes[key] else None
     for field, value in changes.items():
         setattr(product, field, value)
     if TEXT_FIELDS & changes.keys():

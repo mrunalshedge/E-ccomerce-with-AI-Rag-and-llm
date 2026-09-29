@@ -1,4 +1,4 @@
-import { ArrowLeft, Globe, Link2, PackageCheck, PackageX, ShieldCheck, ShoppingCart } from "lucide-react";
+import { ArrowLeft, Box, Globe, Link2, PackageCheck, PackageX, ShieldCheck, ShoppingCart } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
@@ -13,6 +13,8 @@ import { ReviewsSection } from "../components/reviews/ReviewsSection";
 import { Stars } from "../components/reviews/Stars";
 import { SellerDetails } from "../components/SellerDetails";
 import { SizePicker } from "../components/sizes/SizePicker";
+import { ProductViewer3D } from "../components/three/ProductViewer3D";
+import { TryOnButton } from "../components/tryon/TryOnDialog";
 import { Button } from "../components/ui/button";
 import { Badge, Card, ErrorState, Skeleton } from "../components/ui/primitives";
 import { useI18n } from "../i18n/I18nProvider";
@@ -32,11 +34,13 @@ export function ProductPage() {
   const [quantity, setQuantity] = useState(1);
   const [size, setSize] = useState<string | null>(null);
   const [sizeError, setSizeError] = useState(false);
+  const [media, setMedia] = useState<"photo" | "3d">("photo");
   const recordView = useRecordView();
   const together = useBoughtTogether(Number(id));
   const productId = product.data?.id;
   useEffect(() => {
     setSize(null); // a new product starts with no size chosen
+    setMedia("photo");
     setSizeError(false);
     setQuantity(1);
     if (productId) recordView(productId);
@@ -102,7 +106,32 @@ export function ProductPage() {
 
       <div className="grid gap-8 md:grid-cols-2">
         <div className="md:sticky md:top-24 md:self-start">
-          <ProductImage src={p.image_url} title={p.title} category={p.category} large className="rounded-3xl" />
+          {p.model_url && media === "3d" ? (
+            <ProductViewer3D src={p.model_url} title={p.title} poster={p.image_url} credit={p.model_credit} />
+          ) : (
+            <ProductImage src={p.image_url} title={p.title} category={p.category} large className="rounded-3xl" />
+          )}
+          {p.model_url && (
+            <div className="mt-3 inline-flex rounded-xl border border-line bg-surface p-1" role="group">
+              {(["photo", "3d"] as const).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  aria-pressed={media === m}
+                  onClick={() => setMedia(m)}
+                  className={`inline-flex items-center gap-1.5 rounded-lg px-4 py-1.5 text-sm font-medium ${media === m ? "bg-brand text-on-brand" : "text-muted hover:text-fg"}`}
+                >
+                  {m === "3d" && <Box className="h-4 w-4" aria-hidden />}
+                  {m === "photo" ? t("view_photo") : t("has_3d")}
+                </button>
+              ))}
+            </div>
+          )}
+          {p.try_on && (
+            <div>
+              <TryOnButton spec={p.try_on} title={p.title} />
+            </div>
+          )}
         </div>
 
         <div>

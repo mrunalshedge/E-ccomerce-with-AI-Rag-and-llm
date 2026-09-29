@@ -1,6 +1,6 @@
 from datetime import datetime
 from decimal import Decimal
-from typing import Self
+from typing import Annotated, Literal, Self
 
 from pydantic import BaseModel, Field, HttpUrl, field_validator, model_validator
 
@@ -26,6 +26,29 @@ class SizeStock(BaseModel):
         return value
 
 
+HexColor = Annotated[str, Field(pattern=r"^#[0-9a-fA-F]{6}$")]
+
+
+class WristTryOn(BaseModel):
+    """How to draw a watch on the shopper's wrist (camera try-on). Real case size keeps it true to scale."""
+
+    kind: Literal["wrist"] = "wrist"
+    case_mm: int = Field(ge=20, le=60)
+    dial_color: HexColor
+    case_color: HexColor
+    strap_color: HexColor
+
+
+def _check_model_url(url: HttpUrl | None) -> HttpUrl | None:
+    """3D models must be glTF (.glb/.gltf) over HTTPS, since AR viewers on phones require both."""
+    if url is not None:
+        if url.scheme != "https":
+            raise ValueError("The 3D model link must start with https://")
+        if not (url.path or "").lower().endswith((".glb", ".gltf")):
+            raise ValueError("The 3D model must be a .glb or .gltf file")
+    return url
+
+
 def _check_sizes(sizes: list[SizeStock] | None, chart: list[SizeChartRow] | None) -> None:
     names = [s.size for s in sizes or []]
     validate_sizes(names)
@@ -47,6 +70,9 @@ class ProductCreate(BaseModel):
     is_returnable: bool = True
     country_of_origin: str = Field(default="India", min_length=2, max_length=100)
     image_url: HttpUrl | None = None
+    model_url: HttpUrl | None = None
+    model_credit: str | None = Field(default=None, max_length=200)
+    try_on: WristTryOn | None = None
     # Clothing etc.: per-size stock (``stock`` then becomes their sum) and an optional size chart.
     sizes: list[SizeStock] | None = Field(default=None, max_length=20)
     size_chart: list[SizeChartRow] | None = Field(default=None, max_length=20)
@@ -55,6 +81,8 @@ class ProductCreate(BaseModel):
     @classmethod
     def normalise_category(cls, value: str) -> str:
         return value.strip().lower()
+
+    check_model_url = field_validator("model_url")(_check_model_url)
 
     @model_validator(mode="after")
     def check_sizes(self) -> Self:
@@ -78,6 +106,9 @@ class ProductUpdate(BaseModel):
     is_returnable: bool | None = None
     country_of_origin: str | None = Field(default=None, min_length=2, max_length=100)
     image_url: HttpUrl | None = None
+    model_url: HttpUrl | None = None  # null clears it
+    model_credit: str | None = Field(default=None, max_length=200)
+    try_on: WristTryOn | None = None  # null turns the try-on off
     # Sent = replaces the size list ([] removes sizes). A sized product's stock is their sum.
     sizes: list[SizeStock] | None = Field(default=None, max_length=20)
     # Sent = replaces the chart ([] removes it); checked against the product's sizes by the service.
@@ -87,6 +118,8 @@ class ProductUpdate(BaseModel):
     @classmethod
     def normalise_category(cls, value: str | None) -> str | None:
         return value.strip().lower() if value else value
+
+    check_model_url = field_validator("model_url")(_check_model_url)
 
     @model_validator(mode="after")
     def check_sizes(self) -> Self:
@@ -110,6 +143,9 @@ class ProductRead(BaseModel):
     is_returnable: bool
     country_of_origin: str
     image_url: str | None
+    model_url: str | None = None
+    model_credit: str | None = None
+    try_on: WristTryOn | None = None
     created_at: datetime
     price: PriceBreakdown
     seller: SellerCard

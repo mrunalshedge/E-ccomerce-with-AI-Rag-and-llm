@@ -24,6 +24,7 @@ from app.schemas.product import ProductCreate
 from app.schemas.seller import SellerCreate
 from app.schemas.user import UserCreate
 from app.services import product_service, seller_service, user_service
+from app.scripts.catalogue_more import EXTRA_PRODUCTS, EXTRA_SIZES, NEW_SELLERS
 from app.scripts.seed_grievances import ADMIN_EMAIL, seed_admin, seed_grievances
 from app.scripts.seed_reviews import seed_reviews
 from app.services.embedding_service import backfill_embeddings
@@ -34,6 +35,19 @@ DEMO_PASSWORD = "DemoPass123!"  # public: demo customers only
 def unsplash(photo_id: str) -> str:
     """Demo photos are hot-linked from Unsplash (free to use under the Unsplash License)."""
     return f"https://images.unsplash.com/{photo_id}?w=800&q=80&auto=format&fit=crop"
+
+
+KHRONOS = "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models"
+
+
+def khronos_3d(name: str, credit: str) -> dict[str, str]:
+    """Openly licensed demo 3D models (Khronos glTF Sample Assets), in real-world metres so AR shows
+    them at true size. The product photo is the official render of the same model."""
+    return {
+        "model_url": f"{KHRONOS}/{name}/glTF-Binary/{name}.glb",
+        "image_url": f"{KHRONOS}/{name}/screenshot/screenshot.jpg",
+        "model_credit": f"3D model: {credit} (Khronos glTF Sample Assets)",
+    }
 
 # (seller account email, seller profile, products)
 # Clothing sizes: per-size stock (sums to the catalogue stock) and garment measurements in cm.
@@ -137,6 +151,8 @@ CATALOGUE: list[tuple[str, dict, list[dict]]] = [
             {"title": "Wireless Earbuds with ENC", "image_url": unsplash("photo-1606220588913-b3aacb4d2f46"), "description": "Bluetooth 5.3 earbuds with environmental noise cancellation, 40-hour battery and fast charging.", "category": "electronics", "base_price": "1299", "delivery_fee": "0", "platform_fee": "15", "gst_percent": "18", "stock": 50},
             {"title": "20000mAh Power Bank", "image_url": unsplash("photo-1566554738544-d962991c3fee"), "description": "Slim 20000mAh power bank with 22.5W fast charging and USB-C input/output. BIS certified.", "category": "electronics", "base_price": "1499", "delivery_fee": "0", "platform_fee": "15", "gst_percent": "18", "stock": 35},
             {"title": "Smart LED Bulb 9W", "image_url": unsplash("photo-1590845947698-8924d7409b56"), "description": "Wi-Fi smart bulb with 16 million colours. Works with Alexa and Google Assistant; control from your phone.", "category": "electronics", "base_price": "399", "delivery_fee": "40", "platform_fee": "5", "gst_percent": "18", "stock": 100},
+            {"title": "Minimalist Steel Watch 36 mm", "image_url": unsplash("photo-1616928231359-fc8b7e244c3b"), "description": "Slim 36 mm stainless steel case, clean white dial and a soft black leather strap. Japanese quartz movement, 3 ATM splash resistant. Try it on your wrist with your camera.", "category": "accessories", "base_price": "1799", "delivery_fee": "0", "platform_fee": "15", "gst_percent": "18", "stock": 18, "try_on": {"kind": "wrist", "case_mm": 36, "dial_color": "#f4f4f2", "case_color": "#c7cad0", "strap_color": "#16181b"}},
+            {"title": "Field Watch with Leather Strap 42 mm", "image_url": unsplash("photo-1580139706250-bf6c93772b48"), "description": "Rugged 42 mm brushed-steel field watch with bold numerals, date window and a tan leather strap. 5 ATM water resistant. Try it on your wrist with your camera.", "category": "accessories", "base_price": "2299", "delivery_fee": "0", "platform_fee": "15", "gst_percent": "18", "stock": 10, "try_on": {"kind": "wrist", "case_mm": 42, "dial_color": "#f3f1ec", "case_color": "#b8b2a6", "strap_color": "#8b5a2b"}},
         ],
     ),
     (
@@ -153,10 +169,19 @@ CATALOGUE: list[tuple[str, dict, list[dict]]] = [
         [
             {"title": "Blue Pottery Coffee Mugs (Set of 2)", "image_url": unsplash("photo-1755622832288-99689d254b48"), "description": "Hand-painted Jaipur blue pottery mugs. Microwave-safe glaze, 300 ml each.", "category": "home", "base_price": "799", "delivery_fee": "60", "platform_fee": "8", "gst_percent": "12", "stock": 20},
             {"title": "Hand Block Printed Double Bedsheet", "image_url": unsplash("photo-1693990155103-b349eba41fb5"), "description": "100% cotton Sanganeri block-print double bedsheet with two pillow covers. 144 thread count.", "category": "home", "base_price": "1199", "delivery_fee": "0", "platform_fee": "10", "gst_percent": "5", "stock": 15},
+            {"title": "Iridescent Glass Table Lamp", **khronos_3d("IridescenceLamp", "© 2022 Wayfair LLC, CC BY 4.0"), "description": "Mouth-blown glass table lamp with an iridescent finish on a brushed-metal base. About 30 cm wide and 48 cm tall: see it on your own table in 3D before you buy.", "category": "home", "base_price": "2499", "delivery_fee": "0", "platform_fee": "15", "gst_percent": "12", "stock": 8},
+            {"title": "Velvet Accent Chair", **khronos_3d("SheenChair", "Wayfair LLC, CC0 (public domain)"), "description": "Compact velvet slipper chair with a solid wood frame. About 83 cm wide and 69 cm tall: place it in your room in 3D to check the fit.", "category": "home", "base_price": "7999", "delivery_fee": "299", "platform_fee": "25", "gst_percent": "18", "stock": 5},
+            {"title": "Velvet 3-Seater Sofa", **khronos_3d("GlamVelvetSofa", "© 2021 Wayfair LLC, CC BY 4.0"), "description": "Plush velvet three-seater sofa with slim arms. About 2.2 m wide and 1 m deep: view it at true size in your living room before ordering.", "category": "home", "base_price": "24999", "delivery_fee": "999", "platform_fee": "49", "gst_percent": "18", "stock": 3},
             {"title": "Wings of Fire (Paperback)", "image_url": unsplash("photo-1591951425600-d09958978584"), "description": "The autobiography of Dr. A.P.J. Abdul Kalam. An inspiring read for students and professionals.", "category": "books", "base_price": "299", "delivery_fee": "40", "platform_fee": "0", "gst_percent": "0", "stock": 70},
         ],
     ),
 ]
+
+
+# The wider catalogue (≈100 more products and 6 more sellers) lives in catalogue_more.py.
+CATALOGUE = [(email, profile, products + EXTRA_PRODUCTS.get(email, [])) for email, profile, products in CATALOGUE]
+CATALOGUE += NEW_SELLERS
+SIZES.update(EXTRA_SIZES)
 
 
 async def rotate_passwords(db: AsyncSession, emails: list[str], password: str) -> int:

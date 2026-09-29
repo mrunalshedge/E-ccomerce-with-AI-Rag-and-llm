@@ -35,6 +35,9 @@ export interface Product {
   is_returnable: boolean;
   country_of_origin: string;
   image_url: string | null;
+  model_url: string | null; // glTF 3D model for the 3D viewer and AR
+  model_credit: string | null;
+  try_on: WristTryOn | null; // live camera try-on (watches)
   created_at: string;
   price: PriceBreakdown;
   seller: SellerCard;
@@ -42,6 +45,14 @@ export interface Product {
   sizes: SizeStock[]; // empty = the product doesn't come in sizes
   size_chart: SizeChartRow[] | null;
   fit: FitSummary | null;
+}
+
+export interface WristTryOn {
+  kind: "wrist";
+  case_mm: number;
+  dial_color: string; // #rrggbb
+  case_color: string;
+  strap_color: string;
 }
 
 export interface SizeStock {
@@ -359,6 +370,9 @@ export interface ProductInput {
   is_returnable: boolean;
   country_of_origin: string;
   image_url: string | null;
+  model_url: string | null;
+  model_credit: string | null;
+  try_on: WristTryOn | null;
   sizes: SizeStock[] | null;
   size_chart: SizeChartRow[] | null;
 }

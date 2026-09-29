@@ -56,6 +56,12 @@ class Product(Base):
     is_returnable: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
     country_of_origin: Mapped[str] = mapped_column(String(100), default="India", server_default="India")
     image_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    # Optional 3D model (glTF binary, real-world metres) for the 3D viewer and "View in your room" AR.
+    model_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    # Attribution shown under the viewer, e.g. for Creative Commons models.
+    model_credit: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    # Live "try on your wrist" (watches): {"kind": "wrist", "case_mm": 40, "dial_color": "#…", ...}.
+    try_on: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     # Garment measurements per size, in cm: [{"size": "M", "chest": 102, "length": 104}, ...].
     # Shown in cm and inches; also drives AI size advice and the 3D fit visualiser.
     size_chart: Mapped[list[dict] | None] = mapped_column(JSON, nullable=True)

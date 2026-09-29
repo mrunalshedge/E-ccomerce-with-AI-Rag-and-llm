@@ -119,6 +119,9 @@ docker-compose.yml  Postgres+pgvector (host port 5433) and Redis (6379), named v
   provider failure → keyword `rule_based` triage (en/Hinglish/hi). Reply language follows the
   customer's script (reuses assistant `_script_hint`). Admin: /admin/overview, /admin/grievances.
 - All UI strings (storefront, seller portal `adminStrings`+`adminHi`/`adminMr`, admin panel) must exist in en/hi/mr; the `Record<...>` types make a missing translation a compile error.
+- Demo catalogue: 126 products / 11 sellers / 11 categories. Base items in `scripts/seed_demo.py`, the rest in
+  `scripts/catalogue_more.py` (merged into CATALOGUE/SIZES). Photos are Unsplash (non-premium, checked to match,
+  no visible brands); 3D models are Khronos glTF samples (CC0/CC BY, credited). New categories need `cat_*` strings.
 - Demo logins: customers (demo.customer@…, priya.sharma@… etc.) use the PUBLIC DemoPass123!; seller and admin
   accounts (demo.seller@…, admin@shopsense.dev) use the SECRET SEED_STAFF_PASSWORD from backend/.env (never commit
   or print it). `npm run seed` refuses to run without it and rotates existing staff accounts to it.
