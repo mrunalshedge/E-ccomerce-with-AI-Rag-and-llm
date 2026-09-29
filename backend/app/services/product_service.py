@@ -3,15 +3,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.errors import NotFoundError
-from app.models.product import Product
+from app.models.product import Product, ProductVariant
 from app.models.seller import Seller
 from app.schemas.pricing import PriceBreakdown
-from app.schemas.product import ProductCreate, ProductRead
+from app.schemas.product import FitRead, ProductCreate, ProductRead, SizeStock
 from app.schemas.review import RatingSummary
 from app.schemas.seller import SellerCard
 from app.services.embedding_service import embed_product
 from app.services.pricing import calculate_price_breakdown
-from app.services.rating_service import rating_summaries
+from app.services.rating_service import fit_counts, rating_summaries
+from app.services.size_service import fit_summary
 
 
 def price_of(product: Product) -> PriceBreakdown:
@@ -24,9 +25,23 @@ def price_of(product: Product) -> PriceBreakdown:
     )
 
 
-def to_product_read(product: Product, rating: RatingSummary | None = None) -> ProductRead:
+def adjust_stock(product: Product, size: str | None, delta: int) -> None:
+    """Add (or with a negative ``delta`` take) units, keeping a sized product's total equal to the
+    sum of its sizes. Restocking a size the seller has since removed is a no-op."""
+    if product.has_sizes:
+        variant = product.variant(size)
+        if variant is None:
+            return
+        variant.stock += delta
+    product.stock += delta
+
+
+def to_product_read(
+    product: Product, rating: RatingSummary | None = None, fits: dict[str, int] | None = None
+) -> ProductRead:
     """Build the public product response: product fields + price breakdown + seller card.
     ``product.seller`` must already be loaded."""
+    fit = FitRead(**vars(fit_summary(fits or {}))) if product.has_sizes else None
     return ProductRead(
         id=product.id,
         title=product.title,
@@ -40,6 +55,9 @@ def to_product_read(product: Product, rating: RatingSummary | None = None) -> Pr
         price=price_of(product),
         seller=SellerCard.model_validate(product.seller),
         rating=rating or RatingSummary(average=None, count=0),
+        sizes=[SizeStock(size=v.size, stock=v.stock) for v in product.variants],
+        size_chart=product.size_chart or None,
+        fit=fit,
     )
 
 
@@ -90,9 +108,11 @@ async def get_products_by_ids(db: AsyncSession, ids: list[int]) -> list[Product]
 
 
 async def create_product(db: AsyncSession, seller: Seller, data: ProductCreate) -> Product:
-    values = data.model_dump()
+    values = data.model_dump(exclude={"sizes", "size_chart"})
     values["image_url"] = str(data.image_url) if data.image_url else None
     product = Product(seller_id=seller.id, **values)
+    product.variants = [ProductVariant(size=s.size, stock=s.stock, position=i) for i, s in enumerate(data.sizes or [])]
+    product.size_chart = data.size_chart or None
     product.seller = seller  # already loaded; lets the response build without another query
     await embed_product(product)  # so it's immediately findable by meaning
     db.add(product)
@@ -112,5 +132,7 @@ async def list_categories(db: AsyncSession) -> list[tuple[str, int]]:
 
 async def to_product_reads(db: AsyncSession, products: list[Product]) -> list[ProductRead]:
     """Product responses with their star ratings (one aggregate query for the whole list)."""
-    ratings = await rating_summaries(db, [p.id for p in products])
-    return [to_product_read(p, ratings[p.id]) for p in products]
+    ids = [p.id for p in products]
+    ratings = await rating_summaries(db, ids)
+    fits = await fit_counts(db, [p.id for p in products if p.has_sizes])
+    return [to_product_read(p, ratings[p.id], fits.get(p.id)) for p in products]

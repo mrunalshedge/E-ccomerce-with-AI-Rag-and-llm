@@ -33,3 +33,18 @@ async def rating_distribution(db: AsyncSession, product_id: int) -> dict[str, in
     for rating, count in (await db.execute(stmt)).all():
         distribution[str(rating)] = count
     return distribution
+
+
+async def fit_counts(db: AsyncSession, product_ids: list[int]) -> dict[int, dict[str, int]]:
+    """How many published reviews said runs small / true to size / runs large, per product."""
+    result: dict[int, dict[str, int]] = {pid: {} for pid in product_ids}
+    if not product_ids:
+        return result
+    stmt = (
+        select(Review.product_id, Review.fit, func.count(Review.id))
+        .where(Review.product_id.in_(product_ids), Review.status == ReviewStatus.PUBLISHED, Review.fit.is_not(None))
+        .group_by(Review.product_id, Review.fit)
+    )
+    for product_id, fit, count in (await db.execute(stmt)).all():
+        result[product_id][fit.value] = count
+    return result

@@ -38,6 +38,14 @@ async def init_rate_limiter() -> str:
 
 
 def _client_ip(request: Request) -> str:
+    """The caller's IP. Behind a hosting proxy every request comes from the proxy, so with
+    TRUSTED_PROXY_HOPS=N we read X-Forwarded-For counting N entries from the *right*: those were
+    appended by our own proxies. Entries further left are client-supplied and could be spoofed to
+    dodge rate limits, so they're never used."""
+    hops = get_settings().trusted_proxy_hops
+    forwarded = [ip.strip() for ip in request.headers.get("x-forwarded-for", "").split(",") if ip.strip()]
+    if hops and len(forwarded) >= hops:
+        return forwarded[-hops]
     return request.client.host if request.client else "unknown"
 
 

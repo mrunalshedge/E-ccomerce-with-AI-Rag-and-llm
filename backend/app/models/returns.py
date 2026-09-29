@@ -14,6 +14,7 @@ class ReturnReason(enum.StrEnum):
     WRONG_ITEM = "wrong_item"
     COUNTERFEIT = "counterfeit"
     DAMAGED = "damaged"
+    WRONG_SIZE = "wrong_size"  # can ask for an exchange to another size
     OTHER = "other"
 
 
@@ -39,6 +40,8 @@ class ReturnRequest(Base):
     description: Mapped[str] = mapped_column(Text)
     status: Mapped[ReturnStatus] = mapped_column(pg_enum(ReturnStatus, "return_status"), default=ReturnStatus.REQUESTED)
     refund_amount: Mapped[Decimal] = mapped_column(Numeric(12, 2))
+    # Wrong size: the size the customer wants instead (stock is reserved when approved).
+    exchange_size: Mapped[str | None] = mapped_column(String(20), nullable=True)
     resolution_note: Mapped[str | None] = mapped_column(String(500), nullable=True)
     resolved_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, server_default=func.now())

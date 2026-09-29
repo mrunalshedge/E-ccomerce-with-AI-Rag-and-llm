@@ -30,6 +30,7 @@ class OrderItemRead(BaseModel):
     id: int
     product_id: int | None
     title: str
+    size: str | None
     quantity: int
     unit_price: PriceBreakdown
     line_total: Decimal

@@ -138,6 +138,7 @@ export function ReviewsSection({ productId }: { productId: number }) {
                   <Badge tone="brand">
                     <BadgeCheck className="h-3 w-3" aria-hidden /> {t("verified_purchase")}
                   </Badge>
+                  {r.fit && <Badge>{t(`fit_${r.fit}`)}</Badge>}
                 </div>
               </li>
             ))}

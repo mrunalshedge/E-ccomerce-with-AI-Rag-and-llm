@@ -74,6 +74,7 @@ class OrderItem(Base):
     # Nullable: the order history must survive the product being deleted later.
     product_id: Mapped[int | None] = mapped_column(ForeignKey("products.id", ondelete="SET NULL"), nullable=True)
     title: Mapped[str] = mapped_column(String(200))
+    size: Mapped[str | None] = mapped_column(String(20), nullable=True)
     quantity: Mapped[int] = mapped_column(Integer)
     unit_base_price: Mapped[Decimal] = mapped_column(Numeric(10, 2))
     unit_delivery_fee: Mapped[Decimal] = mapped_column(Numeric(10, 2))

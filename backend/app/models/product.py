@@ -8,10 +8,12 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Index,
+    JSON,
     Integer,
     Numeric,
     String,
     Text,
+    UniqueConstraint,
     func,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -54,6 +56,9 @@ class Product(Base):
     is_returnable: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
     country_of_origin: Mapped[str] = mapped_column(String(100), default="India", server_default="India")
     image_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    # Garment measurements per size, in cm: [{"size": "M", "chest": 102, "length": 104}, ...].
+    # Shown in cm and inches; also drives AI size advice and the 3D fit visualiser.
+    size_chart: Mapped[list[dict] | None] = mapped_column(JSON, nullable=True)
     # Deferred: never loaded unless explicitly requested (it's large and not part of responses).
     embedding: Mapped[list[float] | None] = mapped_column(Vector(EMBEDDING_DIM), nullable=True, deferred=True)
     created_at: Mapped[datetime] = mapped_column(
@@ -62,3 +67,32 @@ class Product(Base):
 
     # lazy="raise": async sessions can't lazy-load, so force explicit selectinload().
     seller: Mapped[Seller] = relationship(lazy="raise")
+    # Sizes are small and needed wherever a product is shown, so they're always eager-loaded
+    # ("selectin" runs inside the same query round, which is safe with async sessions).
+    variants: Mapped[list["ProductVariant"]] = relationship(
+        lazy="selectin", cascade="all, delete-orphan", order_by="ProductVariant.position"
+    )
+
+    @property
+    def has_sizes(self) -> bool:
+        return bool(self.variants)
+
+    def variant(self, size: str | None) -> "ProductVariant | None":
+        return next((v for v in self.variants if v.size == size), None)
+
+
+class ProductVariant(Base):
+    """One size of a product with its own stock. For sized products, ``Product.stock`` is kept
+    equal to the sum of variant stock so listings and "only N left" keep working unchanged."""
+
+    __tablename__ = "product_variants"
+    __table_args__ = (
+        UniqueConstraint("product_id", "size", name="uq_product_variants_product_size"),
+        CheckConstraint("stock >= 0", name="ck_product_variants_stock_nonneg"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    product_id: Mapped[int] = mapped_column(ForeignKey("products.id", ondelete="CASCADE"), index=True)
+    size: Mapped[str] = mapped_column(String(20))
+    stock: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    position: Mapped[int] = mapped_column(Integer, default=0, server_default="0")  # display order

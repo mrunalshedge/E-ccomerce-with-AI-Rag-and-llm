@@ -39,6 +39,27 @@ export interface Product {
   price: PriceBreakdown;
   seller: SellerCard;
   rating: RatingSummary;
+  sizes: SizeStock[]; // empty = the product doesn't come in sizes
+  size_chart: SizeChartRow[] | null;
+  fit: FitSummary | null;
+}
+
+export interface SizeStock {
+  size: string;
+  stock: number;
+}
+
+/** Garment measurements in cm, e.g. { size: "M", chest: 102, length: 106 }. */
+export type SizeChartRow = { size: string } & Partial<Record<Measurement, number>>;
+export const MEASUREMENTS = ["chest", "waist", "hip", "length", "shoulder", "sleeve", "inseam"] as const;
+export type Measurement = (typeof MEASUREMENTS)[number];
+
+export type ReviewFit = "runs_small" | "true_to_size" | "runs_large";
+export interface FitSummary {
+  runs_small: number;
+  true_to_size: number;
+  runs_large: number;
+  verdict: ReviewFit | "mixed" | null; // null = fewer than 3 answers
 }
 
 export interface ProductList {
@@ -79,6 +100,7 @@ export interface CartLine {
   image_url: string | null;
   seller_id: number;
   seller_name: string;
+  size: string | null;
   quantity: number;
   available_stock: number;
   unit_price: PriceBreakdown;
@@ -98,6 +120,7 @@ export interface OrderItem {
   id: number;
   product_id: number | null;
   title: string;
+  size: string | null;
   quantity: number;
   unit_price: PriceBreakdown;
   line_total: Money;
@@ -129,7 +152,7 @@ export interface CheckoutResponse {
   grand_total: Money;
 }
 
-export type ReturnReason = "wrong_item" | "counterfeit" | "damaged" | "other";
+export type ReturnReason = "wrong_item" | "counterfeit" | "damaged" | "wrong_size" | "other";
 export type ReturnStatus = "requested" | "approved" | "rejected";
 
 export interface ReturnRequest {
@@ -137,7 +160,9 @@ export interface ReturnRequest {
   order_id: number;
   order_item_id: number;
   product_title: string;
+  size: string | null;
   reason: ReturnReason;
+  exchange_size: string | null;
   description: string;
   status: ReturnStatus;
   refund_amount: Money;
@@ -174,6 +199,7 @@ export interface Review {
   id: number;
   product_id: number;
   rating: number;
+  fit: ReviewFit | null;
   title: string | null;
   body: string;
   reviewer: string;
@@ -333,6 +359,8 @@ export interface ProductInput {
   is_returnable: boolean;
   country_of_origin: string;
   image_url: string | null;
+  sizes: SizeStock[] | null;
+  size_chart: SizeChartRow[] | null;
 }
 
 export interface SellerProfileInput {

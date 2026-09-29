@@ -19,6 +19,12 @@ interface Turn extends ChatMessage {
 
 const STORAGE_KEY = "shopsense.chat";
 const HISTORY_TURNS = 10; // earlier messages sent for context
+const ASK_EVENT = "shopsense:ask-assistant";
+
+/** Open the assistant with ``text`` typed in (not sent), for the customer to finish and send. */
+export function askAssistant(text: string) {
+  window.dispatchEvent(new CustomEvent(ASK_EVENT, { detail: text }));
+}
 
 function loadTurns(): Turn[] {
   try {
@@ -70,6 +76,21 @@ export function AssistantWidget() {
     if (open) inputRef.current?.focus();
   }, [open]);
 
+  // Other parts of the page can open the chat with a half-written question (see askAssistant).
+  useEffect(() => {
+    const onAsk = (e: Event) => {
+      setInput((e as CustomEvent<string>).detail);
+      setOpen(true);
+      requestAnimationFrame(() => {
+        const el = inputRef.current;
+        el?.focus();
+        el?.setSelectionRange(el.value.length, el.value.length);
+      });
+    };
+    window.addEventListener(ASK_EVENT, onAsk);
+    return () => window.removeEventListener(ASK_EVENT, onAsk);
+  }, []);
+
   const send = useCallback(
     (text: string) => {
       const message = text.trim();
@@ -77,7 +98,7 @@ export function AssistantWidget() {
       const history = turns
         .filter((turn) => !turn.error)
         .slice(-HISTORY_TURNS)
-        .map(({ role, content }) => ({ role, content }));
+        .map(({ role, content }) => ({ role, content: content.slice(0, 2000) })); // server limit
       setTurns((prev) => [...prev, { role: "user", content: message }]);
       setInput("");
       chat.mutate(

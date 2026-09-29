@@ -60,7 +60,11 @@ async def bought_together(
     return await product_service.to_product_reads(db, products)
 
 
-@router.get("/recommendations", response_model=list[RecommendationRead])
+@router.get(
+    "/recommendations",
+    response_model=list[RecommendationRead],
+    dependencies=[Depends(rate_limit("recommendations", limit=60, window_seconds=60))],
+)
 async def recommendations(
     db: DbSession,
     user: OptionalUser,

@@ -231,6 +231,7 @@ function ReturnsTab() {
               <Badge tone={r.reason === "wrong_item" || r.reason === "counterfeit" ? "danger" : "neutral"}>
                 {t(`reason_${r.reason}` as StringKey)}
               </Badge>
+              {r.exchange_size && <Badge tone="brand">{t("exchange_label", { s: r.exchange_size })}</Badge>}
               <span className="ml-auto text-sm font-semibold tabular">{t("admin_refund", { amt: formatINR(r.refund_amount) })}</span>
             </div>
             <p className="mt-2 text-sm">“{r.description}”</p>

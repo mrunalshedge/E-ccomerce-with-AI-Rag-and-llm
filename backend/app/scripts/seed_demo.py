@@ -1,17 +1,24 @@
-"""Seed demo sellers and products for local development and demos.
+"""Seed demo sellers, products, buyers, reviews, complaints and an admin.
 
 Idempotent: existing sellers (by email) and products (by seller + title) are skipped.
 Usage (from the project root):  npm run seed
-All demo accounts use the password printed at the end. Never run this against production.
+
+Passwords: demo *customers* share the public DEMO_PASSWORD (it's shown on the login page).
+Demo *seller and admin* accounts use SEED_STAFF_PASSWORD from backend/.env, which is never
+published; re-running the seed rotates existing staff accounts to it.
 """
 
 import asyncio
 from decimal import Decimal
 
+from anyio import to_thread
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import get_settings
+from app.core.security import hash_password, verify_password
 from app.db.session import SessionLocal, engine
-from app.models.product import Product
+from app.models.product import Product, ProductVariant
 from app.models.user import UserRole
 from app.schemas.product import ProductCreate
 from app.schemas.seller import SellerCreate
@@ -21,7 +28,7 @@ from app.scripts.seed_grievances import ADMIN_EMAIL, seed_admin, seed_grievances
 from app.scripts.seed_reviews import seed_reviews
 from app.services.embedding_service import backfill_embeddings
 
-DEMO_PASSWORD = "DemoPass123!"
+DEMO_PASSWORD = "DemoPass123!"  # public: demo customers only
 
 
 def unsplash(photo_id: str) -> str:
@@ -29,6 +36,41 @@ def unsplash(photo_id: str) -> str:
     return f"https://images.unsplash.com/{photo_id}?w=800&q=80&auto=format&fit=crop"
 
 # (seller account email, seller profile, products)
+# Clothing sizes: per-size stock (sums to the catalogue stock) and garment measurements in cm.
+SIZES: dict[str, dict] = {
+    "Handwoven Cotton Kurta": {
+        "sizes": [{"size": "S", "stock": 5}, {"size": "M", "stock": 8}, {"size": "L", "stock": 7}, {"size": "XL", "stock": 4}, {"size": "XXL", "stock": 1}],
+        "size_chart": [
+            {"size": "S", "chest": 96, "waist": 90, "length": 104, "shoulder": 42, "sleeve": 58},
+            {"size": "M", "chest": 102, "waist": 96, "length": 106, "shoulder": 44, "sleeve": 59},
+            {"size": "L", "chest": 108, "waist": 102, "length": 108, "shoulder": 46, "sleeve": 60},
+            {"size": "XL", "chest": 114, "waist": 108, "length": 110, "shoulder": 48, "sleeve": 61},
+            {"size": "XXL", "chest": 120, "waist": 114, "length": 112, "shoulder": 50, "sleeve": 62},
+        ],
+    },
+    "Khadi Nehru Jacket": {
+        "sizes": [{"size": "S", "stock": 3}, {"size": "M", "stock": 4}, {"size": "L", "stock": 3}, {"size": "XL", "stock": 2}],
+        "size_chart": [
+            {"size": "S", "chest": 98, "waist": 90, "length": 66, "shoulder": 41},
+            {"size": "M", "chest": 104, "waist": 96, "length": 68, "shoulder": 43},
+            {"size": "L", "chest": 110, "waist": 102, "length": 70, "shoulder": 45},
+            {"size": "XL", "chest": 116, "waist": 108, "length": 72, "shoulder": 47},
+        ],
+    },
+}
+
+
+def add_sizes(product: Product) -> bool:
+    """Give an already-seeded clothing product its sizes (older seeds predate sizes)."""
+    spec = SIZES.get(product.title)
+    if spec is None or product.variants:
+        return False
+    product.variants = [ProductVariant(size=s["size"], stock=s["stock"], position=i) for i, s in enumerate(spec["sizes"])]
+    product.stock = sum(s["stock"] for s in spec["sizes"])
+    product.size_chart = spec["size_chart"]
+    return True
+
+
 CATALOGUE: list[tuple[str, dict, list[dict]]] = [
     (
         "demo.seller@shopsense.dev",
@@ -117,15 +159,34 @@ CATALOGUE: list[tuple[str, dict, list[dict]]] = [
 ]
 
 
+async def rotate_passwords(db: AsyncSession, emails: list[str], password: str) -> int:
+    """Make sure each existing account uses ``password``; returns how many were changed."""
+    changed = 0
+    for email in emails:
+        user = await user_service.get_user_by_email(db, email)
+        if user and not await to_thread.run_sync(verify_password, password, user.hashed_password):
+            user.hashed_password = await to_thread.run_sync(hash_password, password)
+            changed += 1
+    await db.commit()
+    return changed
+
+
 async def seed() -> None:
-    created_sellers = created_products = updated_images = 0
+    secret = get_settings().seed_staff_password
+    if secret is None or len(secret.get_secret_value()) < 12:
+        raise SystemExit(
+            "Set SEED_STAFF_PASSWORD (12+ characters) in backend/.env: the secret password for the demo "
+            "seller and admin accounts. It is never shown on the site or committed."
+        )
+    staff_password = secret.get_secret_value()
+    created_sellers = created_products = updated_images = sized = 0
     async with SessionLocal() as db:
         for email, profile, products in CATALOGUE:
             user = await user_service.get_user_by_email(db, email)
             if user is None:
                 user = await user_service.create_user(
                     db,
-                    UserCreate(name=profile["business_name"], email=email, password=DEMO_PASSWORD, role=UserRole.SELLER),
+                    UserCreate(name=profile["business_name"], email=email, password=staff_password, role=UserRole.SELLER),
                 )
             seller = await seller_service.get_seller_by_user_id(db, user.id)
             if seller is None:
@@ -141,26 +202,30 @@ async def seed() -> None:
                     if product.image_url is None and item.get("image_url"):
                         product.image_url = item["image_url"]
                         updated_images += 1
+                    sized += add_sizes(product)
                     continue
-                data = ProductCreate(**{**item, "base_price": Decimal(item["base_price"])})
+                data = ProductCreate(**{**item, **SIZES.get(item["title"], {}), "base_price": Decimal(item["base_price"])})
                 await product_service.create_product(db, seller, data)
                 created_products += 1
         await db.commit()
         embedded = await backfill_embeddings(db)
         reviews, flagged = await seed_reviews(db, DEMO_PASSWORD)
-        admin_created = await seed_admin(db, DEMO_PASSWORD)
+        admin_created = await seed_admin(db, staff_password)
+        staff_emails = [email for email, _, _ in CATALOGUE] + [ADMIN_EMAIL]
+        rotated = await rotate_passwords(db, staff_emails, staff_password)
         complaints = await seed_grievances(db)
     await engine.dispose()
 
     print(f"Embedded {embedded} products for semantic search.")
 
-    print(f"Added photos to {updated_images} existing products.")
+    print(f"Added photos to {updated_images} existing products and sizes to {sized}.")
     print(f"Seeded {created_sellers} new sellers and {created_products} new products.")
     print(f"Demo seller logins: {', '.join(email for email, _, _ in CATALOGUE)}")
     print(f"Seeded {reviews} verified reviews ({flagged} flagged as possibly fake for the admin queue).")
     print(f"Seeded {complaints} demo complaints.")
     print(f"Admin login: {ADMIN_EMAIL}" + (" (created)" if admin_created else ""))
-    print(f"Password for all demo accounts: {DEMO_PASSWORD}")
+    print(f"Demo customer password (public): {DEMO_PASSWORD}")
+    print(f"Seller/admin accounts use SEED_STAFF_PASSWORD from backend/.env ({rotated} rotated to it).")
 
 
 if __name__ == "__main__":

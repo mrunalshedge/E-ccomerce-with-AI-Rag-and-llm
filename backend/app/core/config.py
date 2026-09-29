@@ -31,8 +31,13 @@ class Settings(BaseSettings):
     sql_echo: bool = False
 
     redis_url: str = "redis://localhost:6379/0"
+    # Secret password for the seeded demo *seller and admin* accounts (customers use a public one).
+    seed_staff_password: SecretStr | None = None
     # Sliding-window rate limits on login, search and AI endpoints (tests turn this off).
     rate_limit_enabled: bool = True
+    # Number of reverse proxies in front of the app that append to X-Forwarded-For (0 locally,
+    # usually 1 on Render / Hugging Face / Fly). Used to find the real client IP for rate limits.
+    trusted_proxy_hops: int = Field(default=0, ge=0, le=5)
 
     jwt_secret_key: str = Field(min_length=32)
     jwt_algorithm: str = "HS256"

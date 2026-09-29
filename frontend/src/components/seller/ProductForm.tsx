@@ -7,6 +7,7 @@ import type { Product, ProductInput } from "../../lib/types";
 import { PriceBreakdown } from "../PriceBreakdown";
 import { Button } from "../ui/button";
 import { Card, Field, Input, Textarea } from "../ui/primitives";
+import { SizeEditor, draftFrom, draftProblems, payloadFrom, type SizeDraft } from "./SizeEditor";
 
 const GST_RATES = ["0", "5", "12", "18", "28"];
 
@@ -23,6 +24,8 @@ function fromProduct(p?: Product): ProductInput {
     is_returnable: p?.is_returnable ?? true,
     country_of_origin: p?.country_of_origin ?? "India",
     image_url: p?.image_url ?? null,
+    sizes: null, // kept in the size editor's draft until submit
+    size_chart: null,
   };
 }
 
@@ -40,13 +43,15 @@ export function ProductForm({
 }) {
   const { t } = useI18n();
   const [form, setForm] = useState<ProductInput>(() => fromProduct(product));
+  const [sizeDraft, setSizeDraft] = useState<SizeDraft>(() => draftFrom(product?.sizes, product?.size_chart));
+  const sized = sizeDraft.sizes.length > 0;
   const set = <K extends keyof ProductInput>(key: K, value: ProductInput[K]) => setForm((f) => ({ ...f, [key]: value }));
   const preview = usePricePreview({ base: form.base_price, delivery: form.delivery_fee, platform: form.platform_fee, gst: form.gst_percent });
-  const valid = form.title.trim().length >= 2 && form.description.trim().length > 0 && form.category.trim().length >= 2 && Number(form.base_price) > 0;
+  const valid = form.title.trim().length >= 2 && form.description.trim().length > 0 && form.category.trim().length >= 2 && Number(form.base_price) > 0 && !draftProblems(sizeDraft);
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    if (valid) onSubmit({ ...form, image_url: form.image_url?.trim() || null });
+    if (valid) onSubmit({ ...form, image_url: form.image_url?.trim() || null, ...payloadFrom(sizeDraft) });
   };
   const money = (key: "base_price" | "delivery_fee" | "platform_fee") => (
     <Input id={key} inputMode="decimal" value={form[key]} onChange={(e) => set(key, e.target.value.replace(/[^\d.]/g, ""))} />
@@ -90,9 +95,17 @@ export function ProductForm({
             </select>
           </Field>
           <Field id="stock" label={t("seller_field_stock")}>
-            <Input id="stock" type="number" min={0} value={form.stock} onChange={(e) => set("stock", Math.max(0, Number(e.target.value) || 0))} />
+            <Input
+              id="stock"
+              type="number"
+              min={0}
+              disabled={sized} // a sized product's stock is the sum of its sizes
+              value={sized ? sizeDraft.sizes.reduce((sum, s) => sum + s.stock, 0) : form.stock}
+              onChange={(e) => set("stock", Math.max(0, Number(e.target.value) || 0))}
+            />
           </Field>
         </div>
+        <SizeEditor draft={sizeDraft} onChange={setSizeDraft} />
         <Field id="image" label={t("seller_field_image")}>
           <Input id="image" type="url" value={form.image_url ?? ""} onChange={(e) => set("image_url", e.target.value)} placeholder="https://…" />
         </Field>

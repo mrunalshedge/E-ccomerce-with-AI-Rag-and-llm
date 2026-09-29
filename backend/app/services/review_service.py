@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.ai.embeddings import embed_texts
-from app.core.errors import ConflictError, NotFoundError, PermissionDeniedError
+from app.core.errors import BadRequestError, ConflictError, NotFoundError, PermissionDeniedError
 from app.core.policies import REVIEW_FLAG_THRESHOLD
 from app.db.types import utcnow
 from app.models.order import Order, OrderItem, OrderStatus
@@ -128,6 +128,7 @@ def to_review_read(review: Review) -> ReviewRead:
         id=review.id,
         product_id=review.product_id,
         rating=review.rating,
+        fit=review.fit,
         title=review.title,
         body=review.body,
         reviewer=reviewer_name(review.user),
@@ -170,6 +171,8 @@ async def create_review(
     if product is None:
         raise NotFoundError(f"Product {product_id} not found")
     item = await _reviewable_item(db, user, product_id)
+    if data.fit is not None and item.size is None and not product.has_sizes:
+        raise BadRequestError("Fit feedback is only for products that come in sizes")
 
     text = f"{data.title or ''} {data.body}".strip()
     try:
@@ -191,6 +194,7 @@ async def create_review(
         user_id=user.id,
         order_item_id=item.id,
         rating=data.rating,
+        fit=data.fit,
         title=data.title,
         body=data.body.strip(),
         status=ReviewStatus.FLAGGED if assessment.score >= REVIEW_FLAG_THRESHOLD else ReviewStatus.PUBLISHED,

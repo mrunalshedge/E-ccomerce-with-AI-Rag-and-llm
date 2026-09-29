@@ -119,7 +119,9 @@ docker-compose.yml  Postgres+pgvector (host port 5433) and Redis (6379), named v
   provider failure → keyword `rule_based` triage (en/Hinglish/hi). Reply language follows the
   customer's script (reuses assistant `_script_hint`). Admin: /admin/overview, /admin/grievances.
 - All UI strings (storefront, seller portal `adminStrings`+`adminHi`/`adminMr`, admin panel) must exist in en/hi/mr; the `Record<...>` types make a missing translation a compile error.
-- Demo logins (seed): admin@shopsense.dev, demo.customer@…, priya.sharma@… etc., password DemoPass123!
+- Demo logins: customers (demo.customer@…, priya.sharma@… etc.) use the PUBLIC DemoPass123!; seller and admin
+  accounts (demo.seller@…, admin@shopsense.dev) use the SECRET SEED_STAFF_PASSWORD from backend/.env (never commit
+  or print it). `npm run seed` refuses to run without it and rotates existing staff accounts to it.
 - DSA (5B): services/discovery_service.py caches the autocomplete Trie (TTL 300 s) and the
   CoPurchaseGraph (TTL 120 s) in memory; invalidate_catalogue()/invalidate_orders() are called on
   product create / checkout / cancel. Recently viewed = LRU of per-user LRUs (in-process; guests keep
@@ -130,6 +132,14 @@ docker-compose.yml  Postgres+pgvector (host port 5433) and Redis (6379), named v
   5/10min/user, reviews 10/h/user. Tests set RATE_LIMIT_ENABLED=false; test_discovery re-enables it.
 - Seller product edits: PATCH /sellers/me/products/{id}; null = unchanged for required fields; title/
   description/category changes re-embed; route invalidates the autocomplete trie.
+- Sizes (migration 0007): `ProductVariant` rows hold per-size stock; for sized products `Product.stock` is always
+  the sum (change stock only via `product_service.adjust_stock`). Cart lines are unique per (user, product, size)
+  (NULLS NOT DISTINCT); PATCH/DELETE cart items take `?size=`. Sized products REQUIRE a size (never guessed).
+  `size_chart` = garment measurements in cm (JSON rows, validated by `size_service.validate_chart`); UI converts
+  to inches. Reviews may carry `fit` (runs_small/true_to_size/runs_large); verdict needs ≥3 answers and ≥50%.
+  `size_service.recommend_size` = smallest in-stock size with ease (chest 6 / waist 4 / hip 6 cm), +1 size if
+  buyers say "runs small"; assistant tool `get_size_advice`. Returns: `wrong_size` may carry `exchange_size`
+  (refund 0); approval restocks the returned size and reserves the new one, or refunds in full if it sold out.
 - Tests share one pooled engine per run (session event loop) and TRUNCATE between tests;
   `BCRYPT_ROUNDS=4` in tests. Full suite ≈ 2.5 min against Neon (network-bound).
 

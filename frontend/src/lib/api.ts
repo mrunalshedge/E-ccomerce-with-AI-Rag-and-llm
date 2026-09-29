@@ -2,6 +2,10 @@
 
 const TOKEN_KEY = "shopsense.token";
 
+// In development Vite proxies /api to the local backend. In production set VITE_API_URL
+// (e.g. https://shopsense-api.example.com) at build time; the backend must list this site in CORS_ORIGINS.
+const API_BASE = `${(import.meta.env.VITE_API_URL ?? "").replace(/\/+$/, "")}/api/v1`;
+
 export function getToken(): string | null {
   try {
     return localStorage.getItem(TOKEN_KEY);
@@ -64,7 +68,7 @@ export async function api<T>(path: string, { method = "GET", json, form }: Reque
 
   let response: Response;
   try {
-    response = await fetch(`/api/v1${path}`, { method, headers, body });
+    response = await fetch(`${API_BASE}${path}`, { method, headers, body });
   } catch {
     throw new ApiError(0, "Can't reach ShopSense. Check your connection and try again.");
   }

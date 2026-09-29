@@ -3,7 +3,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
-from app.models.review import ReviewStatus
+from app.models.review import ReviewFit, ReviewStatus
 
 
 class RatingSummary(BaseModel):
@@ -13,6 +13,7 @@ class RatingSummary(BaseModel):
 
 class ReviewCreate(BaseModel):
     rating: int = Field(ge=1, le=5)
+    fit: ReviewFit | None = None  # "How does it fit?" — only for products that come in sizes
     title: str | None = Field(default=None, max_length=120)
     body: str = Field(min_length=10, max_length=2000)
 
@@ -26,6 +27,7 @@ class ReviewRead(BaseModel):
     id: int
     product_id: int
     rating: int
+    fit: ReviewFit | None = None
     title: str | None
     body: str
     reviewer: str  # "Asha K." — first name + initial, never the full name or email

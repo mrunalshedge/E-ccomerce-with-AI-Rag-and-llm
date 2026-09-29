@@ -24,6 +24,14 @@ from app.models.product import EMBEDDING_DIM
 from app.models.user import User
 
 
+class ReviewFit(enum.StrEnum):
+    """Buyer's answer to "How does it fit?" (sized products only)."""
+
+    RUNS_SMALL = "runs_small"
+    TRUE_TO_SIZE = "true_to_size"
+    RUNS_LARGE = "runs_large"
+
+
 class ReviewStatus(enum.StrEnum):
     PUBLISHED = "published"  # visible and counted in ratings (all honest reviews, good or bad)
     FLAGGED = "flagged"  # looks fake: hidden from ratings until an admin checks it
@@ -40,6 +48,7 @@ class Review(Base):
     # The purchase that makes this a verified review; one review per purchased line.
     order_item_id: Mapped[int] = mapped_column(ForeignKey("order_items.id", ondelete="CASCADE"), unique=True)
     rating: Mapped[int] = mapped_column(Integer)
+    fit: Mapped[ReviewFit | None] = mapped_column(pg_enum(ReviewFit, "review_fit"), nullable=True)
     title: Mapped[str | None] = mapped_column(String(120), nullable=True)
     body: Mapped[str] = mapped_column(Text)
     status: Mapped[ReviewStatus] = mapped_column(pg_enum(ReviewStatus, "review_status"), default=ReviewStatus.PUBLISHED)

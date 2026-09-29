@@ -21,7 +21,8 @@ from app.models.review import Review, ReviewStatus, ReviewSummary
 from app.models.user import User, UserRole
 from app.services import order_service, search_service
 from app.services.product_service import price_of
-from app.services.rating_service import rating_distribution, rating_summaries
+from app.services.rating_service import fit_counts, rating_distribution, rating_summaries
+from app.services.size_service import fit_summary, recommend_size, to_cm
 
 
 @dataclass
@@ -49,6 +50,7 @@ def _summary(product: Product) -> dict:
         "final_price_inr": str(price.final_price),
         "free_delivery": price.delivery_fee == 0,
         "in_stock": product.stock > 0,
+        **({"sizes_in_stock": [v.size for v in product.variants if v.stock > 0]} if product.has_sizes else {}),
         "returnable": product.is_returnable,
         "seller": product.seller.business_name,
         "seller_trust_score": round(product.seller.trust_score),
@@ -95,6 +97,8 @@ def build_tools(ctx: ToolContext) -> list[BaseTool]:
                 "stock": product.stock,
                 "country_of_origin": product.country_of_origin,
                 "price_breakdown_inr": price_of(product).model_dump(exclude={"currency"}),
+                **({"stock_by_size": {v.size: v.stock for v in product.variants}} if product.has_sizes else {}),
+                **({"size_chart_cm": product.size_chart} if product.size_chart else {}),
                 "seller_details": {
                     "address": seller.address,
                     "gstin": seller.gstin,
@@ -137,13 +141,53 @@ def build_tools(ctx: ToolContext) -> list[BaseTool]:
         )
 
     @tool
+    async def get_size_advice(
+        product_id: int,
+        chest: float | None = None,
+        waist: float | None = None,
+        hip: float | None = None,
+        unit: str = "cm",
+    ) -> str:
+        """Suggest a size for a clothing product from the customer's BODY measurements, using the
+        seller's size chart, current stock and what verified buyers said about the fit.
+
+        Args:
+            product_id: The product to size.
+            chest: Body chest measurement, if the customer gave it.
+            waist: Body waist measurement, if given.
+            hip: Body hip measurement, if given.
+            unit: "cm" or "inch" — the unit the customer used.
+        """
+        product = await ctx.db.get(Product, product_id)
+        if product is None:
+            return f"Product {product_id} does not exist."
+        if not product.has_sizes:
+            return "This product doesn't come in sizes."
+        ctx.details.append((product.id, product.title))
+        unit = "inch" if unit.lower().startswith("in") else "cm"
+        body = {k: to_cm(v, unit) for k, v in {"chest": chest, "waist": waist, "hip": hip}.items() if v}
+        fit = fit_summary((await fit_counts(ctx.db, [product_id]))[product_id])
+        advice = recommend_size(
+            product.size_chart, [v.size for v in product.variants if v.stock > 0], body, fit.verdict
+        )
+        return _dump(
+            {
+                "suggested_size": advice.size,
+                "reason": advice.reason,
+                "compared_measurements": advice.checked,
+                "buyer_fit_feedback": {"verdict": fit.verdict, "answers": fit.total},
+                "note": "Advice only; the customer picks the size. Wrong-size items can be exchanged.",
+            }
+        )
+
+    @tool
     def get_return_policy() -> str:
         """ShopSense's return and refund rules."""
         return (
             f"Returns are requested from the order page within {RETURN_WINDOW_DAYS} days of delivery. "
             "Wrong items and fake/counterfeit items are ALWAYS accepted in that window, even for "
             "products marked non-returnable. Damaged or other reasons are accepted only for returnable "
-            "products. An admin reviews each request; approved wrong/fake returns lower the seller's "
+            "products. Wrong size (clothing): ask for a refund or an exchange to another size. An admin reviews each request; approved wrong/fake returns lower the seller's "
             "trust score. Orders can be cancelled free of charge until they ship; prepaid amounts are refunded."
         )
 
@@ -192,6 +236,7 @@ def build_tools(ctx: ToolContext) -> list[BaseTool]:
         search_products,
         get_product_details,
         get_review_insights,
+        get_size_advice,
         get_return_policy,
         get_my_orders,
         get_order_status,

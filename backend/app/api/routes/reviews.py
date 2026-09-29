@@ -60,7 +60,11 @@ async def create_review(product_id: int, data: ReviewCreate, user: CustomerUser,
     return to_review_read(await review_service.create_review(db, user, product_id, data))
 
 
-@router.get("/products/{product_id}/reviews/summary", response_model=ReviewSummaryResponse)
+@router.get(
+    "/products/{product_id}/reviews/summary",
+    response_model=ReviewSummaryResponse,
+    dependencies=[Depends(rate_limit("summary", limit=30, window_seconds=60))],  # may call Gemini
+)
 async def review_summary(
     product_id: int,
     db: DbSession,

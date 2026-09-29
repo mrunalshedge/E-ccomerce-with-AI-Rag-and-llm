@@ -301,7 +301,8 @@ function FeedbackTab() {
                     <ReturnStatusBadge status={r.status} />
                   </div>
                   <p className="mt-1 text-xs text-muted">
-                    {t(`reason_${r.reason}` as StringKey)} · {t("order_no", { id: r.order_id })} · {formatDate(r.created_at, lang)}
+                    {t(`reason_${r.reason}` as StringKey)}
+                    {r.exchange_size && ` (${t("exchange_label", { s: r.exchange_size })})`} · {t("order_no", { id: r.order_id })} · {formatDate(r.created_at, lang)}
                   </p>
                   <p className="mt-2 text-sm">“{r.description}”</p>
                 </Card>

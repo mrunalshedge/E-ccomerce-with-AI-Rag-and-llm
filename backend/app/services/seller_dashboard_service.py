@@ -7,14 +7,15 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.core.errors import NotFoundError
+from app.core.errors import BadRequestError, NotFoundError
 from app.db.types import utcnow
 from app.models.order import Order, OrderItem, OrderStatus
-from app.models.product import Product
+from app.models.product import Product, ProductVariant
 from app.models.returns import ReturnRequest, ReturnStatus
 from app.models.review import Review, ReviewStatus
 from app.models.seller import Seller
-from app.schemas.product import ProductUpdate
+from app.schemas.product import ProductUpdate, SizeStock
+from app.services.size_service import validate_chart
 from app.services.embedding_service import embed_product
 
 LOW_STOCK = 5
@@ -43,6 +44,19 @@ async def update_product(db: AsyncSession, seller: Seller, product_id: int, data
         raise NotFoundError(f"Product {product_id} not found")
     # Only the photo can be cleared; null for any required field means "leave unchanged".
     changes = {k: v for k, v in data.model_dump(exclude_unset=True).items() if v is not None or k == "image_url"}
+    sizes, chart = changes.pop("sizes", None), changes.pop("size_chart", None)
+    if sizes is not None:
+        _replace_sizes(product, data.sizes or [])
+    if chart is not None:
+        product.size_chart = chart or None
+    if product.size_chart:
+        try:
+            validate_chart(product.size_chart, [v.size for v in product.variants])
+        except ValueError as exc:
+            raise BadRequestError(str(exc)) from exc
+    if product.has_sizes:
+        changes.pop("stock", None)  # per-size stock wins; the total is derived below
+        product.stock = sum(v.stock for v in product.variants)
     if "image_url" in changes:
         changes["image_url"] = str(changes["image_url"]) if changes["image_url"] else None
     for field, value in changes.items():
@@ -51,6 +65,18 @@ async def update_product(db: AsyncSession, seller: Seller, product_id: int, data
         await embed_product(product)
     await db.commit()
     return product
+
+
+def _replace_sizes(product: Product, sizes: list[SizeStock]) -> None:
+    """Make the product's sizes exactly ``sizes``, keeping existing rows (and their ids) where the
+    size name is unchanged."""
+    existing = {v.size: v for v in product.variants}
+    variants = []
+    for position, item in enumerate(sizes):
+        variant = existing.get(item.size) or ProductVariant(size=item.size)
+        variant.stock, variant.position = item.stock, position
+        variants.append(variant)
+    product.variants = variants  # removed sizes are deleted (delete-orphan)
 
 
 async def dashboard(db: AsyncSession, seller: Seller) -> dict:

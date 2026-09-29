@@ -126,7 +126,7 @@ Every line is rounded half-up to 2 decimals, so the lines always add up to the f
 | Seller | `/seller` | onboarding, dashboard + trust-score breakdown, add/edit products with a live "customers will see ₹X" preview, ship/deliver orders, returns & reviews |
 | Admin | `/admin` | overview, complaints queue (by priority + deadline), review moderation (with fake-review reasons), return approvals |
 
-Demo logins (after `npm run seed`, password `DemoPass123!`): customer `demo.customer@shopsense.dev`, seller `demo.seller@shopsense.dev`, admin `admin@shopsense.dev`.
+Public demo login: customer `demo.customer@shopsense.dev` / `DemoPass123!`. The demo seller and admin accounts are private: their password is `SEED_STAFF_PASSWORD` in `backend/.env` (set it before `npm run seed`).
 
 ## AI features (all free)
 | Feature | How |

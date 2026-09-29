@@ -1,0 +1,10 @@
+# Never ship secrets or local environments in the image.
+.env
+.env.*
+!.env.example
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+tests/

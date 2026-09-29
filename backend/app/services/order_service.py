@@ -30,7 +30,8 @@ from app.schemas.order import (
 )
 from app.schemas.pricing import OrderTotals, PriceBreakdown
 from app.services.pricing import line_total, summarise_lines
-from app.services.product_service import price_of
+from app.services.cart_service import stock_of
+from app.services.product_service import adjust_stock, price_of
 
 ORDER_LOADERS = (selectinload(Order.items), selectinload(Order.events), selectinload(Order.seller))
 
@@ -71,6 +72,7 @@ def to_order_read(order: Order) -> OrderRead:
                 id=item.id,
                 product_id=item.product_id,
                 title=item.title,
+                size=item.size,
                 quantity=item.quantity,
                 unit_price=_unit_price_of(item),
                 line_total=item.line_total,
@@ -104,8 +106,17 @@ async def _load_orders(db: AsyncSession, order_ids: Sequence[int]) -> list[Order
 
 
 async def _lock_products(db: AsyncSession, product_ids: set[int]) -> dict[int, Product]:
-    """SELECT ... FOR UPDATE, in id order so concurrent transactions can't deadlock."""
-    stmt = select(Product).where(Product.id.in_(product_ids)).order_by(Product.id).with_for_update()
+    """SELECT ... FOR UPDATE, in id order so concurrent transactions can't deadlock.
+
+    The product row lock also guards its sizes: every size-stock change locks the product first.
+    ``populate_existing`` makes sure the sizes are re-read after the lock is taken."""
+    stmt = (
+        select(Product)
+        .where(Product.id.in_(product_ids))
+        .order_by(Product.id)
+        .with_for_update(of=Product)
+        .execution_options(populate_existing=True)
+    )
     return {p.id: p for p in (await db.execute(stmt)).scalars().all()}
 
 
@@ -122,9 +133,13 @@ async def checkout(db: AsyncSession, user: User, data: CheckoutRequest) -> list[
     priced: list[tuple[CartItem, Product, PriceBreakdown]] = []
     for cart_item in cart:
         product = products[cart_item.product_id]
-        if cart_item.quantity > product.stock:
-            left = f"only {product.stock} left" if product.stock else "out of stock"
-            raise ConflictError(f"'{product.title}' is {left}. Please update your cart.")
+        name = f"'{product.title}'" + (f" (size {cart_item.size})" if cart_item.size else "")
+        if product.has_sizes != (cart_item.size is not None):
+            raise ConflictError(f"The sizes of {name} have changed. Please update your cart.")
+        stock = stock_of(product, cart_item.size)
+        if cart_item.quantity > stock:
+            left = f"only {stock} left" if stock else "out of stock"
+            raise ConflictError(f"{name} is {left}. Please update your cart.")
         priced.append((cart_item, product, price_of(product)))
 
     totals = summarise_lines((unit, c.quantity) for c, _, unit in priced)
@@ -159,6 +174,7 @@ async def checkout(db: AsyncSession, user: User, data: CheckoutRequest) -> list[
             OrderItem(
                 product_id=product.id,
                 title=product.title,
+                size=cart_item.size,
                 quantity=cart_item.quantity,
                 unit_base_price=unit.base_price,
                 unit_delivery_fee=unit.delivery_fee,
@@ -180,7 +196,7 @@ async def checkout(db: AsyncSession, user: User, data: CheckoutRequest) -> list[
         db.add(order)
         orders.append(order)
         for cart_item, product, _ in lines:
-            product.stock -= cart_item.quantity
+            adjust_stock(product, cart_item.size, -cart_item.quantity)
 
     await db.execute(delete(CartItem).where(CartItem.user_id == user.id))
     await db.commit()
@@ -221,7 +237,7 @@ async def cancel_order(db: AsyncSession, user: User, order_id: int) -> Order:
     products = await _lock_products(db, {i.product_id for i in items if i.product_id is not None})
     for item in items:
         if item.product_id in products:
-            products[item.product_id].stock += item.quantity
+            adjust_stock(products[item.product_id], item.size, item.quantity)
 
     refunded = order.payment_status == PaymentStatus.PAID
     order.status = OrderStatus.CANCELLED

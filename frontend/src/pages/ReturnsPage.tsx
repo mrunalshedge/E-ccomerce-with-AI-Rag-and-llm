@@ -42,7 +42,8 @@ export function ReturnsPage() {
                     <ReturnStatusBadge status={r.status} />
                   </div>
                   <p className="mt-1 text-sm text-muted">
-                    {t(`reason_${r.reason}` as StringKey)} · {formatDate(r.created_at, lang)} ·{" "}
+                    {t(`reason_${r.reason}` as StringKey)}
+                    {r.exchange_size && ` (${t("exchange_label", { s: r.exchange_size })})`} · {formatDate(r.created_at, lang)} ·{" "}
                     <Link to={`/orders/${r.order_id}`} className="hover:text-brand hover:underline">
                       {t("order_no", { id: r.order_id })}
                     </Link>

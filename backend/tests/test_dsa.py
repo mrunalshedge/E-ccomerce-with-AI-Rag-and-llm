@@ -127,3 +127,26 @@ async def test_sliding_window_has_no_boundary_burst() -> None:
 async def test_disabled_limiter_always_allows() -> None:
     limiter = RateLimiter(MemoryBackend(), enabled=False)
     assert all([(await limiter.hit("k", 1, 60)).allowed for _ in range(5)])
+
+
+# ---------- client IP behind a proxy ----------
+
+
+def test_client_ip_uses_proxy_appended_entry_not_spoofable_left_entries(monkeypatch: pytest.MonkeyPatch) -> None:
+    from starlette.requests import Request
+
+    from app.core import rate_limit
+    from app.core.config import get_settings
+
+    def request(xff: str | None) -> Request:
+        headers = [(b"x-forwarded-for", xff.encode())] if xff else []
+        return Request({"type": "http", "headers": headers, "client": ("10.0.0.1", 1234)})
+
+    settings = get_settings()
+    monkeypatch.setattr(settings, "trusted_proxy_hops", 0)
+    assert rate_limit._client_ip(request("1.2.3.4")) == "10.0.0.1"  # no proxy: header ignored
+
+    monkeypatch.setattr(settings, "trusted_proxy_hops", 1)
+    # The attacker sent "6.6.6.6"; our proxy appended the real address last.
+    assert rate_limit._client_ip(request("6.6.6.6, 203.0.113.9")) == "203.0.113.9"
+    assert rate_limit._client_ip(request(None)) == "10.0.0.1"

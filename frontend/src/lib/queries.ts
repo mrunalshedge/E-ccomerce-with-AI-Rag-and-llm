@@ -23,6 +23,7 @@ import type {
   Language,
   MyReview,
   Review,
+  ReviewFit,
   ReviewList,
   ReviewSort,
   Recommendation,
@@ -77,8 +78,8 @@ export function useCategories() {
   });
 }
 
-export function useProduct(id: number) {
-  return useQuery({ queryKey: ["product", id], queryFn: () => api<Product>(`/products/${id}`) });
+export function useProduct(id: number, enabled = true) {
+  return useQuery({ queryKey: ["product", id], queryFn: () => api<Product>(`/products/${id}`), enabled: enabled && id > 0 });
 }
 
 // ---------- cart (customers only) ----------
@@ -97,17 +98,26 @@ function useCartMutation<T>(fn: (input: T) => Promise<Cart>) {
 }
 
 export const useAddToCart = () =>
-  useCartMutation((input: { productId: number; quantity: number }) =>
-    api<Cart>("/cart/items", { method: "POST", json: { product_id: input.productId, quantity: input.quantity } }),
+  useCartMutation((input: { productId: number; quantity: number; size?: string | null }) =>
+    api<Cart>("/cart/items", {
+      method: "POST",
+      json: { product_id: input.productId, quantity: input.quantity, size: input.size ?? null },
+    }),
   );
 
+/** A cart line is a product plus (for sized products) its size. */
+const cartItemUrl = (productId: number, size: string | null) =>
+  `/cart/items/${productId}` + (size ? `?${new URLSearchParams({ size })}` : "");
+
 export const useUpdateCartItem = () =>
-  useCartMutation((input: { productId: number; quantity: number }) =>
-    api<Cart>(`/cart/items/${input.productId}`, { method: "PATCH", json: { quantity: input.quantity } }),
+  useCartMutation((input: { productId: number; size: string | null; quantity: number }) =>
+    api<Cart>(cartItemUrl(input.productId, input.size), { method: "PATCH", json: { quantity: input.quantity } }),
   );
 
 export const useRemoveCartItem = () =>
-  useCartMutation((productId: number) => api<Cart>(`/cart/items/${productId}`, { method: "DELETE" }));
+  useCartMutation((input: { productId: number; size: string | null }) =>
+    api<Cart>(cartItemUrl(input.productId, input.size), { method: "DELETE" }),
+  );
 
 // ---------- orders ----------
 
@@ -165,10 +175,15 @@ export function useReturns() {
 export function useCreateReturn() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (input: { orderItemId: number; reason: ReturnReason; description: string }) =>
+    mutationFn: (input: { orderItemId: number; reason: ReturnReason; description: string; exchangeSize?: string | null }) =>
       api<ReturnRequest>("/returns", {
         method: "POST",
-        json: { order_item_id: input.orderItemId, reason: input.reason, description: input.description },
+        json: {
+          order_item_id: input.orderItemId,
+          reason: input.reason,
+          description: input.description,
+          exchange_size: input.exchangeSize ?? null,
+        },
       }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["returns"] }),
   });
@@ -202,10 +217,10 @@ export function useMyReviews() {
 export function useCreateReview() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (input: { productId: number; rating: number; title: string; body: string }) =>
+    mutationFn: (input: { productId: number; rating: number; fit: ReviewFit | null; title: string; body: string }) =>
       api<Review>(`/products/${input.productId}/reviews`, {
         method: "POST",
-        json: { rating: input.rating, title: input.title || null, body: input.body },
+        json: { rating: input.rating, fit: input.fit, title: input.title || null, body: input.body },
       }),
     onSuccess: (review) => {
       queryClient.invalidateQueries({ queryKey: ["my-reviews"] });

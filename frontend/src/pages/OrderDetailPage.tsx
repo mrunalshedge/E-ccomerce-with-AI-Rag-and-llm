@@ -100,6 +100,7 @@ export function OrderDetailPage() {
                         ) : (
                           <span className="font-medium">{item.title}</span>
                         )}
+                        {item.size && <p className="text-sm">{t("size_label", { s: item.size })}</p>}
                         <p className="text-sm text-muted tabular">
                           {formatINR(item.unit_price.final_price)} × {item.quantity}
                         </p>
@@ -116,7 +117,7 @@ export function OrderDetailPage() {
                             {reviewByItem.get(item.id)!.status === "flagged" && <Badge tone="warn">{t("review_pending")}</Badge>}
                           </span>
                         ) : openReview === item.id ? (
-                          <ReviewForm productId={item.product_id} onDone={() => setOpenReview(null)} />
+                          <ReviewForm productId={item.product_id} sized={item.size !== null} onDone={() => setOpenReview(null)} />
                         ) : (
                           <Button variant="secondary" size="sm" onClick={() => setOpenReview(item.id)}>
                             <Star className="h-4 w-4" /> {t("write_review")}

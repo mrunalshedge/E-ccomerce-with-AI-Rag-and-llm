@@ -46,7 +46,7 @@ export function CartPage() {
       <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
         <ul className="space-y-3">
           {items.map((line) => (
-            <li key={line.product_id}>
+            <li key={`${line.product_id}-${line.size ?? ""}`}>
               <Card className="flex gap-4 p-3 sm:p-4">
                 <Link to={`/products/${line.product_id}`} className="w-20 shrink-0 sm:w-24">
                   <ProductImage src={line.image_url} title={line.title} category={line.category} />
@@ -57,6 +57,7 @@ export function CartPage() {
                       <Link to={`/products/${line.product_id}`} className="line-clamp-2 font-semibold hover:text-brand">
                         {line.title}
                       </Link>
+                      {line.size && <p className="text-sm font-medium">{t("size_label", { s: line.size })}</p>}
                       <p className="text-xs text-muted">{t("sold_by", { name: line.seller_name })}</p>
                     </div>
                     <div className="text-right">
@@ -68,11 +69,11 @@ export function CartPage() {
                     <QuantityStepper
                       value={line.quantity}
                       max={Math.min(MAX_PER_ITEM, line.available_stock)}
-                      onChange={(quantity) => update.mutate({ productId: line.product_id, quantity }, { onError })}
+                      onChange={(quantity) => update.mutate({ productId: line.product_id, size: line.size, quantity }, { onError })}
                       disabled={busy}
                       label={t("quantity")}
                     />
-                    <Button variant="ghost" size="sm" className="text-muted hover:text-danger" onClick={() => remove.mutate(line.product_id, { onError })} disabled={busy}>
+                    <Button variant="ghost" size="sm" className="text-muted hover:text-danger" onClick={() => remove.mutate({ productId: line.product_id, size: line.size }, { onError })} disabled={busy}>
                       <Trash2 className="h-4 w-4" /> <span className="hidden sm:inline">{t("remove")}</span>
                     </Button>
                   </div>

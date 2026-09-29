@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.types import utcnow
 from app.models.order import Order, OrderEvent, OrderItem, OrderStatus, PaymentMethod, PaymentStatus
 from app.models.product import Product
-from app.models.review import Review
+from app.models.review import Review, ReviewFit
 from app.models.user import User, UserRole
 from app.schemas.review import ReviewCreate
 from app.schemas.user import UserCreate
@@ -29,6 +29,17 @@ BUYERS = [
     ("Rohan Deshmukh", "rohan.deshmukh@shopsense.dev"),
     ("Farhan Khan", "farhan.khan@shopsense.dev"),
 ]
+
+# "How does it fit?" answers and the size each buyer bought: product title -> {buyer index: (size, fit)}
+FITS: dict[str, dict[int, tuple[str, ReviewFit]]] = {
+    "Handwoven Cotton Kurta": {
+        0: ("M", ReviewFit.TRUE_TO_SIZE),
+        1: ("L", ReviewFit.TRUE_TO_SIZE),
+        2: ("M", ReviewFit.TRUE_TO_SIZE),
+        3: ("S", ReviewFit.RUNS_SMALL),
+        4: ("XL", ReviewFit.TRUE_TO_SIZE),
+    },
+}
 
 # product title -> [(buyer index, rating, title, body, days ago)]
 REVIEWS: dict[str, list[tuple[int, int, str | None, str, float]]] = {
@@ -83,7 +94,9 @@ async def _buyer(db: AsyncSession, name: str, email: str, password: str) -> User
     return user
 
 
-async def _delivered_order(db: AsyncSession, user: User, product: Product, delivered_days_ago: float) -> None:
+async def _delivered_order(
+    db: AsyncSession, user: User, product: Product, delivered_days_ago: float, size: str | None = None
+) -> None:
     """A past, delivered, prepaid order for one unit (the demo stock isn't touched)."""
     unit = price_of(product)
     totals = summarise_lines([(unit, 1)])
@@ -108,6 +121,7 @@ async def _delivered_order(db: AsyncSession, user: User, product: Product, deliv
         OrderItem(
             product_id=product.id,
             title=product.title,
+            size=size,
             quantity=1,
             unit_base_price=unit.base_price,
             unit_delivery_fee=unit.delivery_fee,
@@ -139,17 +153,24 @@ async def seed_reviews(db: AsyncSession, password: str) -> tuple[int, int]:
         # Oldest first, so duplicate/burst detection sees reviews in the order they were written.
         for buyer_index, rating, review_title, body, days_ago in sorted(entries, key=lambda e: -e[4]):
             buyer = buyers[buyer_index]
-            already = await db.execute(
-                select(Review.id).where(Review.user_id == buyer.id, Review.product_id == product.id)
-            )
-            if already.first() is not None:
+            size, fit = FITS.get(title, {}).get(buyer_index, (None, None))
+            already = (
+                await db.execute(select(Review).where(Review.user_id == buyer.id, Review.product_id == product.id))
+            ).scalar_one_or_none()
+            if already is not None:
+                if fit is not None and already.fit is None:  # reviews seeded before sizes existed
+                    already.fit = fit
+                    item = await db.get(OrderItem, already.order_item_id)
+                    if item is not None and item.size is None:
+                        item.size = size
+                    await db.commit()
                 continue
-            await _delivered_order(db, buyer, product, delivered_days_ago=days_ago + 1)
+            await _delivered_order(db, buyer, product, delivered_days_ago=days_ago + 1, size=size)
             review = await review_service.create_review(
                 db,
                 buyer,
                 product.id,
-                ReviewCreate(rating=rating, title=review_title, body=body),
+                ReviewCreate(rating=rating, fit=fit, title=review_title, body=body),
                 now=utcnow() - timedelta(days=days_ago),
             )
             created += 1

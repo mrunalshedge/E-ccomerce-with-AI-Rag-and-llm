@@ -5,12 +5,14 @@ import { toast } from "sonner";
 
 import { useAuth } from "../auth/AuthProvider";
 import { PriceBreakdown } from "../components/PriceBreakdown";
+import { askAssistant } from "../components/assistant/AssistantWidget";
 import { ProductRail } from "../components/ProductRail";
 import { ProductImage } from "../components/ProductImage";
 import { QuantityStepper } from "../components/QuantityStepper";
 import { ReviewsSection } from "../components/reviews/ReviewsSection";
 import { Stars } from "../components/reviews/Stars";
 import { SellerDetails } from "../components/SellerDetails";
+import { SizePicker } from "../components/sizes/SizePicker";
 import { Button } from "../components/ui/button";
 import { Badge, Card, ErrorState, Skeleton } from "../components/ui/primitives";
 import { useI18n } from "../i18n/I18nProvider";
@@ -28,10 +30,15 @@ export function ProductPage() {
   const product = useProduct(Number(id));
   const addToCart = useAddToCart();
   const [quantity, setQuantity] = useState(1);
+  const [size, setSize] = useState<string | null>(null);
+  const [sizeError, setSizeError] = useState(false);
   const recordView = useRecordView();
   const together = useBoughtTogether(Number(id));
   const productId = product.data?.id;
   useEffect(() => {
+    setSize(null); // a new product starts with no size chosen
+    setSizeError(false);
+    setQuantity(1);
     if (productId) recordView(productId);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- once per product
   }, [productId]);
@@ -54,19 +61,32 @@ export function ProductPage() {
 
   const p = product.data;
   const soldOut = p.stock === 0;
-  const maxQty = Math.min(MAX_PER_ITEM, p.stock);
+  const sized = p.sizes.length > 0;
+  const sizeStock = sized ? (p.sizes.find((s) => s.size === size)?.stock ?? MAX_PER_ITEM) : p.stock;
+  const maxQty = Math.min(MAX_PER_ITEM, sizeStock);
+
+  const chooseSize = (value: string) => {
+    setSize(value);
+    setSizeError(false);
+    setQuantity(1);
+  };
 
   const onAdd = () => {
     if (!user) {
       navigate("/login", { state: { from: location.pathname } });
       return;
     }
+    if (sized && !size) {
+      setSizeError(true); // never guess a size for the customer
+      document.getElementById("size-picker")?.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
     addToCart.mutate(
-      { productId: p.id, quantity },
+      { productId: p.id, quantity, size },
       {
         onSuccess: () =>
           toast.success(t("added_to_cart"), {
-            description: `${p.title} × ${quantity}`,
+            description: `${p.title}${size ? ` (${size})` : ""} × ${quantity}`,
             action: { label: t("view_cart"), onClick: () => navigate("/cart") },
           }),
         onError: (error) => toast.error(error.message),
@@ -107,7 +127,7 @@ export function ProductPage() {
           <div className="mt-4 flex flex-wrap gap-2">
             {soldOut ? (
               <Badge tone="danger">{t("out_of_stock")}</Badge>
-            ) : p.stock <= 5 ? (
+            ) : !sized && p.stock <= 5 ? (
               <Badge tone="warn">{t("only_left", { n: p.stock })}</Badge>
             ) : (
               <Badge tone="brand">{t("in_stock")}</Badge>
@@ -120,6 +140,18 @@ export function ProductPage() {
               <Globe className="h-3.5 w-3.5" /> {t("made_in", { c: p.country_of_origin })}
             </Badge>
           </div>
+
+          {sized && (
+            <SizePicker
+              sizes={p.sizes}
+              value={size}
+              onChange={chooseSize}
+              chart={p.size_chart}
+              fit={p.fit}
+              error={sizeError}
+              onAskAssistant={p.size_chart ? () => askAssistant(t("size_help_prompt", { title: p.title })) : undefined}
+            />
+          )}
 
           <Card className="mt-6 p-5">
             <h2 className="font-semibold">{t("price_breakdown")}</h2>

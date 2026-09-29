@@ -40,7 +40,11 @@ async def get_grievance(grievance_id: int, user: CurrentUser, db: DbSession) -> 
     return to_grievance_read(await grievance_service.get_for_user(db, user, grievance_id))
 
 
-@router.post("/{grievance_id}/comments", response_model=GrievanceRead)
+@router.post(
+    "/{grievance_id}/comments",
+    response_model=GrievanceRead,
+    dependencies=[Depends(rate_limit("grievance_comment", limit=20, window_seconds=600, per="user"))],
+)
 async def add_comment(grievance_id: int, data: GrievanceComment, user: CustomerUser, db: DbSession) -> GrievanceRead:
     """Add details to an open complaint."""
     return to_grievance_read(await grievance_service.add_customer_comment(db, user, grievance_id, data.message))
